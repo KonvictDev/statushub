@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import '../widgets/status_tile.dart';
+import 'package:statushub/constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
 
 enum MediaType { all, images, videos }
 enum SortOrder { recent, oldest }
@@ -27,7 +29,6 @@ class _StatusTabState extends State<StatusTab> {
   MediaType _selectedType = MediaType.all;
   SortOrder _sortOrder = SortOrder.recent;
 
-  /// Cached file stats to avoid repeated statSync calls
   final Map<String, DateTime> _fileModifiedCache = {};
 
   List<FileSystemEntity> get filteredFiles {
@@ -57,7 +58,6 @@ class _StatusTabState extends State<StatusTab> {
     return filtered;
   }
 
-  /// Cache file modified time to avoid expensive I/O
   DateTime _getModifiedTime(FileSystemEntity file) {
     return _fileModifiedCache.putIfAbsent(
       file.path,
@@ -76,12 +76,13 @@ class _StatusTabState extends State<StatusTab> {
         .contains(ext.toLowerCase());
   }
 
-  String get _sortLabel =>
-      _sortOrder == SortOrder.recent ? 'Recent' : 'Oldest';
+  String _sortLabel(AppLocalizations local) =>
+      _sortOrder == SortOrder.recent ? local.sortRecent : local.sortOldest;
 
   @override
   Widget build(BuildContext context) {
     final files = filteredFiles;
+    final local = AppLocalizations.of(context)!;
 
     return RefreshIndicator(
       onRefresh: widget.onRefresh,
@@ -99,31 +100,34 @@ class _StatusTabState extends State<StatusTab> {
                   onSelected: (selected) {
                     setState(() => _sortOrder = selected);
                   },
-                  color: Colors.green.shade200,
+                  color: AppColors.sortMenuBackground,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  itemBuilder: (context) => const [
+                  itemBuilder: (context) => [
                     PopupMenuItem(
                       value: SortOrder.recent,
-                      child: Text('Recent', style: TextStyle(color: Colors.black)),
+                      child: Text(local.sortRecent,
+                          style: const TextStyle(color: AppColors.sortText)),
                     ),
                     PopupMenuItem(
                       value: SortOrder.oldest,
-                      child: Text('Oldest', style: TextStyle(color: Colors.black)),
+                      child: Text(local.sortOldest,
+                          style: const TextStyle(color: AppColors.sortText)),
                     ),
                   ],
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                     decoration: BoxDecoration(
-                      color: Colors.green.shade200,
+                      color: AppColors.sortMenuBackground,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Row(
                       children: [
-                        Text(_sortLabel, style: const TextStyle(color: Colors.black)),
+                        Text(_sortLabel(local),
+                            style: const TextStyle(color: AppColors.sortText)),
                         const SizedBox(width: 2),
-                        const Icon(Icons.arrow_drop_down, color: Colors.black),
+                        const Icon(Icons.arrow_drop_down, color: AppColors.sortText),
                       ],
                     ),
                   ),
@@ -138,17 +142,29 @@ class _StatusTabState extends State<StatusTab> {
                     physics: const BouncingScrollPhysics(),
                     child: Row(
                       children: MediaType.values.map((type) {
-                        final label =
-                            type.name[0].toUpperCase() + type.name.substring(1);
+                        // Use localization instead of hardcoded names
+                        String label;
+                        final local = AppLocalizations.of(context)!;
+                        switch (type) {
+                          case MediaType.all:
+                            label = local.all;
+                            break;
+                          case MediaType.images:
+                            label = local.images;
+                            break;
+                          case MediaType.videos:
+                            label = local.videos;
+                            break;
+                        }
+
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
                             label: Text(label),
                             selected: _selectedType == type,
-                            onSelected: (_) =>
-                                setState(() => _selectedType = type),
-                            selectedColor: Colors.green.shade100,
-                            checkmarkColor: Colors.green,
+                            onSelected: (_) => setState(() => _selectedType = type),
+                            selectedColor: AppColors.chipSelected,
+                            checkmarkColor: AppColors.chipCheckmark,
                             showCheckmark: false,
                           ),
                         );
@@ -156,6 +172,7 @@ class _StatusTabState extends State<StatusTab> {
                     ),
                   ),
                 ),
+
               ],
             ),
           ),
@@ -165,29 +182,27 @@ class _StatusTabState extends State<StatusTab> {
           /// 📁 Grid of Status Files
           Expanded(
             child: files.isEmpty
-                ? const Center(
+                ? Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.folder_off, size: 60, color: Colors.grey),
-                  SizedBox(height: 20),
-                  Text('No statuses found',
-                      style: TextStyle(fontSize: 18)),
+                  const Icon(Icons.folder_off, size: 60, color: AppColors.emptyIcon),
+                  const SizedBox(height: 20),
+                  Text(local.noStatusesFound,
+                      style: const TextStyle(fontSize: 18)),
                   Text(
-                    'Make sure you have viewed or saved statuses',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
+                    local.noStatusesHint,
+                    style: const TextStyle(fontSize: 14, color: AppColors.emptyText),
                   ),
                 ],
               ),
             )
                 : GridView.builder(
               key: ValueKey('$_selectedType-$_sortOrder'),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               itemCount: files.length,
               physics: const BouncingScrollPhysics(),
-              gridDelegate:
-              const SliverGridDelegateWithFixedCrossAxisCount(
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 mainAxisSpacing: 12,
                 crossAxisSpacing: 12,
@@ -195,10 +210,8 @@ class _StatusTabState extends State<StatusTab> {
               ),
               itemBuilder: (context, index) {
                 final file = files[index];
-
-                // ✅ StatusTile should internally cache thumbnails
                 return StatusTile(
-                  key: ValueKey(file.path), // helps Flutter skip rebuilds
+                  key: ValueKey(file.path),
                   file: file,
                   isSaved: widget.isSaved,
                 );

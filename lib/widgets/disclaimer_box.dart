@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 class DisclaimerBox extends StatelessWidget {
   const DisclaimerBox({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final local = AppLocalizations.of(context)!;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
       child: Container(
@@ -20,8 +23,7 @@ class DisclaimerBox extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(
               child: Text(
-                "WhatsApp doesn’t officially allow saving statuses. "
-                    "This feature is unofficial — please use it responsibly.",
+                local.statusDisclaimer,
                 style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey[800],

@@ -1,8 +1,13 @@
 import 'dart:io';
 import 'dart:typed_data' as typed;
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:social_sharing_plus/social_sharing_plus.dart';
 import 'package:video_player/video_player.dart';
 
+import '../../constants/app_strings.dart';
 import '../action_buttons.dart';
 import '../disclaimer_box.dart';
 import '../drag_indicator.dart';
@@ -12,6 +17,7 @@ class VideoPreviewBottomSheet extends StatefulWidget {
   final typed.Uint8List? thumbnail;
   final ScrollController scrollController;
   final VoidCallback? onSave;
+  final bool isSaved;
 
   const VideoPreviewBottomSheet({
     super.key,
@@ -19,6 +25,7 @@ class VideoPreviewBottomSheet extends StatefulWidget {
     this.thumbnail,
     required this.scrollController,
     this.onSave,
+    required this.isSaved,
   });
 
   @override
@@ -62,6 +69,57 @@ class _VideoPreviewBottomSheetState extends State<VideoPreviewBottomSheet> {
     setState(() {
       _controller.value.isPlaying ? _controller.pause() : _controller.play();
     });
+  }
+
+
+  Future<File?> _getShareableFile({required String prefix}) async {
+    try {
+      // 2. Get the original file's extension (e.g., '.jpg', '.mp4')
+      final originalExtension = p.extension(widget.file.path);
+
+      final tempDir = await getTemporaryDirectory();
+
+      // 3. Use the original extension in the new file name
+      final newFileName = "${prefix}_${DateTime.now().millisecondsSinceEpoch}$originalExtension";
+
+      final newPath = "${tempDir.path}/$newFileName";
+
+      return await widget.file.copy(newPath);
+    } catch (e) {
+      debugPrint("Error copying file for sharing: $e");
+      return null;
+    }
+  }
+
+  void _onShare() async {
+    final shareableFile = await _getShareableFile(prefix: "Status_hub");
+    if (shareableFile == null) return;
+
+    await Share.shareXFiles(
+      [XFile(shareableFile.path)],
+      text: AppStrings.appShareDetails,
+    );
+  }
+
+  void _onRepost(BuildContext context) async {
+    final shareableFile = await _getShareableFile(prefix: "Status_hub_repost");
+    if (shareableFile == null) return;
+
+    try {
+      await SocialSharingPlus.shareToSocialMedia(
+        SocialPlatform.whatsapp,
+        AppStrings.appShareDetails,
+        media: shareableFile.path,
+        isOpenBrowser: true,
+      );
+    } catch (e) {
+      debugPrint("Error while reposting to WhatsApp: $e");
+      // 💡 3. Add the context.mounted check for safety.
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to open WhatsApp")),
+      );
+    }
   }
 
   @override
@@ -136,10 +194,13 @@ class _VideoPreviewBottomSheetState extends State<VideoPreviewBottomSheet> {
             const SizedBox(height: 20),
             // --- Action Buttons ---
             ActionButtons(
-              onShare: () {}, // Temporary no-op
-              onRepost: () {}, // Temporary no-op
-              onSave: widget.onSave != null ? () async => widget.onSave!() : null, // 👈 async
-              sheetContext: context, // Handle null
+              onShare: _onShare,
+              onRepost: () => _onRepost(context),
+              // ✨ CHANGED: Updated onSave logic
+              onSave: widget.isSaved
+                  ? null // If it's already saved, disable the button by passing null.
+                  : (widget.onSave != null ? () async => widget.onSave!() : null), // Otherwise, use the original logic.
+              sheetContext: context,
             ),
             const SizedBox(height: 12),
           ],

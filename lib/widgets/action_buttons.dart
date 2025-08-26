@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_localizations.dart';
 
 class ActionButtons extends StatelessWidget {
   final VoidCallback? onShare;
@@ -29,6 +30,7 @@ class ActionButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final local = AppLocalizations.of(context)!;
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -42,7 +44,7 @@ class ActionButtons extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: _handleShare,
                   icon: const Icon(Icons.share_rounded),
-                  label: const Text("Share"),
+                  label: Text(local.share),
                   style: FilledButton.styleFrom(
                     backgroundColor: colorScheme.primaryContainer,
                     foregroundColor: colorScheme.onPrimaryContainer,
@@ -58,7 +60,7 @@ class ActionButtons extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: _handleRepost,
                   icon: const Icon(Icons.repeat_rounded),
-                  label: const Text("Repost"),
+                  label: Text(local.repost),
                   style: FilledButton.styleFrom(
                     backgroundColor: colorScheme.secondaryContainer,
                     foregroundColor: colorScheme.onSecondaryContainer,
@@ -72,20 +74,21 @@ class ActionButtons extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          FilledButton.icon(
-            onPressed: _handleSave,
-            icon: const Icon(Icons.download_rounded),
-            label: const Text("Save to Gallery"),
-            style: FilledButton.styleFrom(
-              backgroundColor: colorScheme.tertiaryContainer,
-              foregroundColor: colorScheme.onTertiaryContainer,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+          if (onSave != null)
+            FilledButton.icon(
+              onPressed: _handleSave,
+              icon: const Icon(Icons.download_rounded),
+              label: Text(local.saveToGallery),
+              style: FilledButton.styleFrom(
+                backgroundColor: colorScheme.tertiaryContainer,
+                foregroundColor: colorScheme.onTertiaryContainer,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                elevation: 3,
               ),
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              elevation: 3,
             ),
-          ),
         ],
       ),
     );

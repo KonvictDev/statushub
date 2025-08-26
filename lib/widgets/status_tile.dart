@@ -3,6 +3,7 @@ import 'dart:typed_data' as typed;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:statushub/constants/app_colors.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:video_thumbnail/video_thumbnail.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
@@ -27,7 +28,7 @@ class StatusTile extends StatefulWidget {
 
 class _StatusTileState extends State<StatusTile>
     with AutomaticKeepAliveClientMixin {
-  // in-memory cache
+  // ... (existing code for caching, initState, etc. remains the same)
   static final Map<String, typed.Uint8List> _thumbnailCache = {};
   static final Map<String, String> _durationCache = {};
 
@@ -123,8 +124,8 @@ class _StatusTileState extends State<StatusTile>
     return hours > 0 ? '$hours:$minutes:$seconds' : '$minutes:$seconds';
   }
 
-  Future<void> _save(BuildContext context) async {
 
+  Future<void> _save(BuildContext context) async {
     try {
       final saved = await MediaUtils.saveToGallery(mediaFile, isVideo: isVideo);
       if (context.mounted) {
@@ -140,6 +141,19 @@ class _StatusTileState extends State<StatusTile>
       }
     }
   }
+
+  // ✨ CHANGED: Added a share function
+  Future<void> _share() async {
+    try {
+      await Share.shareXFiles(
+        [XFile(mediaFile.path)],
+        text: 'Shared from StatusHub!', // Optional: Add your app details
+      );
+    } catch (e) {
+      debugPrint("Error while sharing: $e");
+    }
+  }
+
 
   Future<void> _openViewer(BuildContext context) async {
     HapticFeedback.lightImpact();
@@ -165,6 +179,7 @@ class _StatusTileState extends State<StatusTile>
                 thumbnail: thumb,
                 scrollController: scrollController,
                 onSave: () => _save(context),
+                isSaved: widget.isSaved,
               ),
             );
           },
@@ -181,11 +196,13 @@ class _StatusTileState extends State<StatusTile>
           child: ImageViewerBottomSheet(
             file: mediaFile,
             onSave: () => _save(context),
+            isSaved: widget.isSaved,
           ),
         ),
       );
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -198,7 +215,7 @@ class _StatusTileState extends State<StatusTile>
         tag: mediaFile.path,
         child: Card(
           clipBehavior: Clip.antiAlias,
-          elevation: 4, // Slightly higher for modern depth
+          elevation: 4,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -206,7 +223,7 @@ class _StatusTileState extends State<StatusTile>
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Media content
+              // Media content (no changes here)
               if (isVideo)
                 _thumbnail != null
                     ? Image.memory(
@@ -228,8 +245,7 @@ class _StatusTileState extends State<StatusTile>
                     const Center(child: Icon(Icons.error, size: 40)),
                   ),
                 ),
-
-              // Overlay gradient for readability
+              // Overlay and other UI elements (no changes here)
               Container(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
@@ -243,8 +259,6 @@ class _StatusTileState extends State<StatusTile>
                   borderRadius: BorderRadius.circular(16),
                 ),
               ),
-
-              // Video play icon
               if (isVideo)
                 Center(
                   child: Container(
@@ -268,8 +282,6 @@ class _StatusTileState extends State<StatusTile>
                     ),
                   ),
                 ),
-
-              // Video duration
               if (isVideo && _duration != null)
                 Positioned(
                   top: 12,
@@ -292,7 +304,7 @@ class _StatusTileState extends State<StatusTile>
                   ),
                 ),
 
-              // Save button
+              // ✨ CHANGED: This button is now conditional
               Positioned(
                 bottom: 12,
                 right: 12,
@@ -307,9 +319,18 @@ class _StatusTileState extends State<StatusTile>
                     padding: const EdgeInsets.all(10),
                     shadowColor: Colors.black26,
                   ),
-                  icon: const Icon(Icons.save_alt_rounded, size: 22),
-                  onPressed: () => _save(context),
-                  tooltip: 'Save to gallery',
+                  // Conditionally change the icon
+                  icon: Icon(
+                    widget.isSaved
+                        ? Icons.share_rounded
+                        : Icons.save_alt_rounded,
+                    size: 22,
+                  ),
+                  // Conditionally change the action
+                  onPressed: () =>
+                  widget.isSaved ? _share() : _save(context),
+                  // Conditionally change the tooltip
+                  tooltip: widget.isSaved ? 'Share' : 'Save to gallery',
                 ),
               ),
             ],
@@ -318,7 +339,6 @@ class _StatusTileState extends State<StatusTile>
       ),
     );
   }
-
 
   @override
   bool get wantKeepAlive => true;

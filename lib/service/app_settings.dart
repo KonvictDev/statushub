@@ -2,30 +2,49 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AppSettings {
-  static const _themeKey = "theme_mode";
-  static const _languageKey = "language";
+  static const _keyTheme = "theme_mode";
+  static const _keyLang = "language";
 
+  /// 🔹 Save theme mode as String ("ThemeMode.light", etc.)
   static Future<void> saveThemeMode(ThemeMode mode) async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setInt(_themeKey, mode.index); // ThemeMode enum has index
+    await prefs.setString(_keyTheme, mode.toString());
   }
 
+  /// 🔹 Load theme mode (auto-migrate old int values)
   static Future<ThemeMode> loadThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
-    final index = prefs.getInt(_themeKey);
-    if (index != null && index >= 0 && index < ThemeMode.values.length) {
-      return ThemeMode.values[index];
+    final value = prefs.get(_keyTheme);
+
+    if (value is int) {
+      // Old version stored ThemeMode index as int → migrate to string
+      final theme = ThemeMode.values[value.clamp(0, ThemeMode.values.length - 1)];
+      await prefs.setString(_keyTheme, theme.toString());
+      return theme;
+    } else if (value is String) {
+      switch (value) {
+        case "ThemeMode.light":
+          return ThemeMode.light;
+        case "ThemeMode.dark":
+          return ThemeMode.dark;
+        case "ThemeMode.system":
+        default:
+          return ThemeMode.system;
+      }
+    } else {
+      return ThemeMode.system; // default if nothing stored
     }
-    return ThemeMode.system;
   }
 
-  static Future<void> saveLanguage(String lang) async {
+  /// 🔹 Save language code ("en", "ta")
+  static Future<void> saveLanguage(String langCode) async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setString(_languageKey, lang);
+    await prefs.setString(_keyLang, langCode);
   }
 
+  /// 🔹 Load language code (defaults to "en")
   static Future<String> loadLanguage() async {
     final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_languageKey) ?? "English";
+    return prefs.getString(_keyLang) ?? "en";
   }
 }

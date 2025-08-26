@@ -1,24 +1,28 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:share_plus/share_plus.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_review/in_app_review.dart';
+import 'package:share_plus/share_plus.dart';
 
+import '../constants/app_strings.dart';
+import '../l10n/app_localizations.dart';
+import '../providers/locale_provider.dart'; // 👈 Import Riverpod provider
 import '../service/app_settings.dart';
 import '../utils/cache_manager.dart';
 
-class SettingsScreen extends StatefulWidget {
+// 1. Convert to a ConsumerStatefulWidget
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+// 2. Extend ConsumerState instead of State
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _cacheSizeMB = 0;
   bool _loading = true;
-
   ThemeMode _themeMode = ThemeMode.system;
-  String _selectedLanguage = "English";
 
   final InAppReview _inAppReview = InAppReview.instance;
 
@@ -26,7 +30,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     _loadCacheSize();
-    _loadSettings();
+    _loadTheme(); // Renamed from _loadSettings
   }
 
   Future<void> _loadCacheSize() async {
@@ -58,18 +62,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _loadCacheSize();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Cache cleared ✅")),
+        SnackBar(content: Text(AppLocalizations.of(context)!.cacheCleared)),
       );
     }
   }
 
-  Future<void> _loadSettings() async {
+  // Load only the theme now, as locale is handled by Riverpod
+  Future<void> _loadTheme() async {
     final theme = await AppSettings.loadThemeMode();
-    final lang = await AppSettings.loadLanguage();
     if (mounted) {
       setState(() {
         _themeMode = theme;
-        _selectedLanguage = lang;
       });
     }
   }
@@ -79,65 +82,48 @@ class _SettingsScreenState extends State<SettingsScreen> {
     AppSettings.saveThemeMode(mode);
   }
 
-  void _changeLanguage(String lang) {
-    setState(() => _selectedLanguage = lang);
-    AppSettings.saveLanguage(lang);
-  }
-
   Future<void> _rateUs() async {
     if (await _inAppReview.isAvailable()) {
       _inAppReview.requestReview();
     } else {
-      _inAppReview.openStoreListing(appStoreId: "com.example.app");
+      _inAppReview.openStoreListing(appStoreId: "com.example.app"); // Replace with your app ID
     }
   }
 
-  void _shareApp() {
-    Share.share(
-      "Check out this awesome app: https://play.google.com/store/apps/details?id=com.example.app",
-    );
-  }
-
-  void _sendFeedback() {
-    // Example: open email client
-    // You could also integrate a feedback form
-    Share.share("Feedback: Please contact us at support@example.com");
-  }
-
-  void _openPrivacyPolicy() {
-    // Replace with Navigator.push(WebView...) or url_launcher
-    Share.share("View our privacy policy: https://example.com/privacy");
-  }
+  void _shareApp() => Share.share(AppStrings.shareMessage);
+  void _sendFeedback() => Share.share(AppStrings.feedbackMessage);
+  void _openPrivacyPolicy() => Share.share(AppStrings.privacyUrl);
 
   @override
   Widget build(BuildContext context) {
+    final loc = AppLocalizations.of(context)!;
+
+    // 3. Watch the provider to get the current locale for the UI
+    final currentLocale = ref.watch(localeProvider);
+
     return Scaffold(
-      appBar: AppBar(title: const Text("Settings")),
+      appBar: AppBar(title: Text(loc.settings)),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
-          _buildHeader("General"),
-          _buildCacheCard(),
-
+          _buildHeader(loc.general),
+          _buildCacheCard(loc),
           const SizedBox(height: 12),
-
-          _buildHeader("Preferences"),
-          _buildThemeCard(),
+          _buildHeader(loc.preferences),
+          _buildThemeCard(loc),
           const SizedBox(height: 12),
-          _buildLanguageCard(),
-
+          _buildLanguageCard(loc, currentLocale), // 👈 Pass the locale from the provider
           const SizedBox(height: 12),
-
-          _buildHeader("About"),
-          _buildRateCard(),
+          _buildHeader(loc.about),
+          _buildRateCard(loc),
           const SizedBox(height: 12),
-          _buildShareCard(),
+          _buildShareCard(loc),
           const SizedBox(height: 12),
-          _buildFeedbackCard(),
+          _buildFeedbackCard(loc),
           const SizedBox(height: 12),
-          _buildPrivacyPolicyCard(),
+          _buildPrivacyPolicyCard(loc),
           const SizedBox(height: 12),
-          _buildInfoCard(),
+          _buildInfoCard(loc),
         ],
       ),
     );
@@ -156,47 +142,57 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildCacheCard() => _buildCard(
+  Widget _buildCard({required Widget child}) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: child,
+    );
+  }
+
+  // --- UI Builder Methods ---
+
+  Widget _buildCacheCard(AppLocalizations loc) => _buildCard(
     child: ListTile(
       leading: const Icon(Icons.storage_rounded),
-      title: const Text("Cache"),
-      subtitle: _loading
-          ? const Text("Loading...")
-          : Text("$_cacheSizeMB MB used"),
+      title: Text(loc.cache),
+      subtitle: _loading ? Text(loc.loading) : Text("$_cacheSizeMB ${loc.usedSuffix}"),
       trailing: FilledButton.icon(
         onPressed: _loading ? null : _clearCache,
         icon: const Icon(Icons.delete_sweep_rounded),
-        label: const Text("Clear"),
+        label: Text(loc.clear),
       ),
     ),
   );
 
-  Widget _buildThemeCard() => _buildCard(
+  Widget _buildThemeCard(AppLocalizations loc) => _buildCard(
     child: Column(
       children: [
-        const ListTile(
-          leading: Icon(Icons.brightness_6_rounded),
-          title: Text("Theme"),
-          subtitle: Text("Choose light, dark, or system mode"),
+        ListTile(
+          leading: const Icon(Icons.brightness_6_rounded),
+          title: Text(loc.theme),
+          subtitle: Text(loc.chooseTheme),
         ),
         Padding(
           padding: const EdgeInsets.only(left: 5, bottom: 12, right: 5),
           child: SegmentedButton<ThemeMode>(
-            segments: const [
+            segments: [
               ButtonSegment(
                 value: ThemeMode.light,
-                icon: Icon(Icons.light_mode_rounded),
-                label: Text("Light"),
+                icon: const Icon(Icons.light_mode_rounded),
+                label: Text(loc.light),
               ),
               ButtonSegment(
                 value: ThemeMode.dark,
-                icon: Icon(Icons.dark_mode_rounded),
-                label: Text("Dark"),
+                icon: const Icon(Icons.dark_mode_rounded),
+                label: Text(loc.dark),
               ),
               ButtonSegment(
                 value: ThemeMode.system,
-                icon: Icon(Icons.phone_android_rounded),
-                label: Text("System"),
+                icon: const Icon(Icons.phone_android_rounded),
+                label: Text(loc.system),
               ),
             ],
             selected: {_themeMode},
@@ -209,77 +205,69 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ),
   );
 
-  Widget _buildLanguageCard() => _buildCard(
+  // 4. Update the Language Card to use the provider
+  Widget _buildLanguageCard(AppLocalizations loc, Locale currentLocale) => _buildCard(
     child: ListTile(
       leading: const Icon(Icons.language_rounded),
-      title: const Text("App Language"),
-      subtitle: Text(_selectedLanguage),
+      title: Text(loc.appLanguage),
+      subtitle: Text(currentLocale.languageCode == "ta" ? "தமிழ்" : "English"),
       trailing: DropdownButton<String>(
-        value: _selectedLanguage,
+        value: currentLocale.languageCode,
         onChanged: (value) {
-          if (value != null) _changeLanguage(value);
+          if (value != null) {
+            // Use ref.read to call the method on our notifier
+            ref.read(localeProvider.notifier).setLocale(value);
+          }
         },
         items: const [
-          DropdownMenuItem(value: "English", child: Text("English")),
-          DropdownMenuItem(value: "Español", child: Text("Español")),
-          DropdownMenuItem(value: "Français", child: Text("Français")),
-          DropdownMenuItem(value: "Deutsch", child: Text("Deutsch")),
+          DropdownMenuItem(value: 'en', child: Text('English')),
+          DropdownMenuItem(value: 'ta', child: Text('தமிழ்')),
         ],
       ),
     ),
   );
 
-  Widget _buildRateCard() => _buildCard(
+  Widget _buildRateCard(AppLocalizations loc) => _buildCard(
     child: ListTile(
-      leading: const Icon(Icons.star_rate_rounded),
-      title: const Text("Rate Us"),
-      subtitle: const Text("Love the app? Leave a review!"),
       onTap: _rateUs,
+      leading: const Icon(Icons.star_rate_rounded),
+      title: Text(loc.rateUs),
+      subtitle: Text(loc.rateSubtitle),
     ),
   );
 
-  Widget _buildShareCard() => _buildCard(
+  Widget _buildShareCard(AppLocalizations loc) => _buildCard(
     child: ListTile(
-      leading: const Icon(Icons.share_rounded),
-      title: const Text("Share App"),
-      subtitle: const Text("Tell your friends about us"),
       onTap: _shareApp,
+      leading: const Icon(Icons.share_rounded),
+      title: Text(loc.shareApp),
+      subtitle: Text(loc.shareSubtitle),
     ),
   );
 
-  Widget _buildFeedbackCard() => _buildCard(
+  Widget _buildFeedbackCard(AppLocalizations loc) => _buildCard(
     child: ListTile(
-      leading: const Icon(Icons.feedback_rounded),
-      title: const Text("Send Feedback"),
-      subtitle: const Text("Let us know your thoughts"),
       onTap: _sendFeedback,
+      leading: const Icon(Icons.feedback_rounded),
+      title: Text(loc.sendFeedback),
+      subtitle: Text(loc.feedbackSubtitle),
     ),
   );
 
-  Widget _buildPrivacyPolicyCard() => _buildCard(
+  Widget _buildPrivacyPolicyCard(AppLocalizations loc) => _buildCard(
     child: ListTile(
-      leading: const Icon(Icons.privacy_tip_rounded),
-      title: const Text("Privacy Policy"),
-      subtitle: const Text("Read how we handle your data"),
       onTap: _openPrivacyPolicy,
+      leading: const Icon(Icons.privacy_tip_rounded),
+      title: Text(loc.privacyPolicy),
+      subtitle: Text(loc.privacySubtitle),
     ),
   );
 
-  Widget _buildInfoCard() => _buildCard(
-    child: const ListTile(
-      leading: Icon(Icons.info_outline_rounded),
-      title: Text("App Info"),
-      subtitle: Text("Version 1.0.0"),
+  Widget _buildInfoCard(AppLocalizations loc) => _buildCard(
+    child: ListTile(
+      leading: const Icon(Icons.info_outline_rounded),
+      title: Text(loc.appInfo),
+      subtitle: Text(loc.version),
     ),
   );
-
-  Widget _buildCard({required Widget child}) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: child,
-    );
-  }
 }

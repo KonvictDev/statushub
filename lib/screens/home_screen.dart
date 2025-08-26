@@ -1,8 +1,12 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:statushub/screens/permission_screen.dart';
 import 'package:statushub/constants/app_colors.dart';
+import '../l10n/app_localizations.dart';
+import '../router/route_names.dart';
 import '../service/status_service.dart';
+import '../service/whatsapp_service.dart';
 import '../widgets/features_tab.dart';
 import '../widgets/status_tab.dart';
 
@@ -30,6 +34,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _checkPermissions() async {
     final hasPermission = await StatusService.hasRequiredPermissions();
+    if (!mounted) return;
     setState(() {
       _hasPermission = hasPermission;
       _isLoading = false;
@@ -44,13 +49,17 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       final current = await StatusService.getStatuses();
       final saved = await StatusService.getSavedStatuses();
+      if (!mounted) return;
       setState(() {
         allStatuses = current;
         savedStatuses = saved;
       });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load statuses: $e')),
+        SnackBar(
+          content: Text('${AppLocalizations.of(context)!.failedToLoadStatuses} $e'),
+        ),
       );
     }
   }
@@ -61,6 +70,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final local = AppLocalizations.of(context)!;
+
     if (_isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -70,6 +81,7 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!_hasPermission) {
       return PermissionScreen(
         onPermissionGranted: () async {
+          if (!mounted) return;
           setState(() => _hasPermission = true);
           await _loadAllStatuses();
         },
@@ -94,49 +106,69 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           // App Title
                           Text(
-                            'Status Hub',
+                            local.statusHub,
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: Colors.white,
+                              color: AppColors.white,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
 
-                          // Action Icons with proper tap targets
+                          // Action Icons
                           Row(
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.whatshot, color: Colors.white),
+                                icon: Image.asset(
+                                  'assets/icons/membership.png', // path to your icon in the icons folder
+                                  // optional, only works for PNGs with transparency
+                                  width: 24,                                 // adjust size
+                                  height: 24,
+                                ),
+                                tooltip: local.subscription,
                                 onPressed: () {},
-                                tooltip: 'Hot Status', // Accessibility hint
                               ),
                               IconButton(
-                                icon: const Icon(Icons.workspace_premium_outlined, color: Colors.white),
-                                onPressed: () {},
-                                tooltip: 'Subscription',
+                                icon: Image.asset(
+                                  'assets/icons/whatsapp.png', // path to your icon in the icons folder
+                                  color: AppColors.white,       // optional, only works for certain formats like PNG with transparency
+                                  width: 24,                     // adjust size
+                                  height: 24,
+                                ),
+                                tooltip: local.hotStatus,
+                                onPressed: () => WhatsAppService.openWhatsApp(context),
                               ),
+
+
+
                               IconButton(
-                                icon: const Icon(Icons.settings, color: Colors.white),
-                                onPressed: () {},
-                                tooltip: 'Settings',
+                                icon: const Icon(Icons.settings, color: AppColors.white),
+                                tooltip: local.settings,
+                                onPressed: () {
+                                  GoRouter.of(context).pushNamed(RouteNames.settings);
+                                },
                               ),
                             ],
                           ),
                         ],
                       ),
                     ),
-                    const TabBar(
-                      labelColor: Colors.white,
-                      unselectedLabelColor: Colors.white70,
-                      indicatorColor: Colors.white,
+                    TabBar(
+                      labelColor: AppColors.white,
+                      unselectedLabelColor: AppColors.white70,
+                      indicatorColor: AppColors.white,
                       indicatorWeight: 3,
                       tabs: [
                         Tab(
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.home_rounded, size: 20),
-                              SizedBox(width: 6),
-                              Text('Home'),
+                              const Icon(Icons.home_rounded, size: 20),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  local.home,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -144,9 +176,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.download_outlined, size: 20),
-                              SizedBox(width: 6),
-                              Text('Saved'),
+                              const Icon(Icons.download_outlined, size: 20),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  local.saved,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -154,9 +191,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.extension_outlined, size: 20),
-                              SizedBox(width: 6),
-                              Text('Tools'),
+                              const Icon(Icons.extension_outlined, size: 20),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  local.tools,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ],
                           ),
                         ),

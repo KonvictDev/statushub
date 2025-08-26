@@ -1,0 +1,108 @@
+{
+  "@@locale": "en",
+
+  "noImageSelected": "No image selected",
+  "pickImage": "Pick Image",
+  "processSticker": "Process Sticker",
+  "textOptions": "Text Options",
+  "editText": "Edit Text",
+  "textColor": "Text Color",
+  "textTheme": "Text Theme",
+  "removeTheme": "Remove Theme",
+  "bgColor": "BG Color",
+  "textSize": "Text Size:",
+  "borderOptions": "Border Options",
+  "borderColor": "Border Color",
+  "width": "Width:",
+
+  "appShareDetails": "📱 Shared via MyAwesomeApp\n✨ Download now: https://example.com/app",
+
+  "share":"Share",
+  "repost":"Repost",
+  "saveToGallery":"Save to Gallery",
+
+  "statusHub": "Status Hub",
+  "hotStatus": "Hot Status",
+  "subscription": "Subscription",
+  "settings": "Settings",
+  "home": "Home",
+  "saved": "Saved",
+  "tools": "Tools",
+  "failedToLoadStatuses": "Failed to load statuses",
+  "all":"All",
+  "images":"Images",
+  "videos":"Videos",
+
+  "cropImage": "Crop Image",
+  "editImage": "Edit Image",
+  "done": "Done",
+  "undo": "Undo",
+  "crop": "Crop",
+  "removeBg": "Remove BG",
+  "backgroundRemoved": "Background removed successfully",
+  "errorRemovingBg": "Error removing background",
+
+  "general": "General",
+  "preferences": "Preferences",
+  "about": "About",
+
+  "cache": "Cache",
+  "loading": "Loading...",
+  "clear": "Clear",
+  "cacheCleared": "Cache cleared ✅",
+  "usedSuffix": "MB used",
+
+  "theme": "Theme",
+  "chooseTheme": "Choose light, dark, or system mode",
+  "light": "Light",
+  "dark": "Dark",
+  "system": "System",
+
+  "appLanguage": "App Language",
+  "english": "English",
+  "spanish": "Español",
+  "french": "Français",
+  "german": "Deutsch",
+  "tamil": "தமிழ்",
+
+  "rateUs": "Rate Us",
+  "rateSubtitle": "Love the app? Leave a review!",
+
+  "shareApp": "Share App",
+  "shareSubtitle": "Tell your friends about us",
+  "shareMessage": "Check out this awesome app: https://play.google.com/store/apps/details?id=com.example.app",
+
+  "sendFeedback": "Send Feedback",
+  "failedToOpenWhatsApp": "Failed to open Whatsapp",
+  "feedbackSubtitle": "Let us know your thoughts",
+  "feedbackMessage": "Feedback: Please contact us at support@example.com",
+
+  "statusDisclaimer":"WhatsApp doesn’t officially allow saving statuses.This feature is unofficial — please use it responsibly.",
+
+  "privacyPolicy": "Privacy Policy",
+  "privacySubtitle": "Read how we handle your data",
+  "privacyUrl": "View our privacy policy: https://example.com/privacy",
+
+  "appInfo": "App Info",
+  "version": "Version 1.0.0",
+
+  "featuresTitle": "Features",
+
+  "featureDirectMessageTitle": "Direct Message",
+  "featureDirectMessageSubtitle": "Send messages without saving numbers.",
+
+  "featureStickerMakerTitle": "Sticker Maker",
+  "featureStickerMakerSubtitle": "Create your own custom stickers.",
+
+  "featureRecoverMessageTitle": "Recover Messages",
+  "featureRecoverMessageSubtitle": "Retrieve recently deleted chats.",
+
+  "featureGamesTitle": "Games",
+  "featureGamesSubtitle": "Pass your time here",
+
+  "sortRecent": "Recent",
+  "sortOldest": "Oldest",
+
+  "noStatusesFound": "No statuses found",
+  "noStatusesHint": "Make sure you have viewed or saved statuses"
+}

@@ -1,84 +1,71 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:social_sharing_plus/social_sharing_plus.dart' ;
+import 'package:social_sharing_plus/social_sharing_plus.dart';
 
 import '../action_buttons.dart';
 import '../disclaimer_box.dart';
 import '../drag_indicator.dart';
+import '../../l10n/app_localizations.dart';
 
 class ImageViewerBottomSheet extends StatelessWidget {
   final File file;
   final Future<void> Function()? onSave;
+  final bool isSaved;
 
   const ImageViewerBottomSheet({
     super.key,
     required this.file,
     this.onSave,
+    required this.isSaved,
   });
 
-
-  void _onShare() async {
+  Future<File?> _getShareableFile({required String prefix}) async {
     try {
-      // Pick a custom file name
-      final newFileName = "Status_hub_${DateTime.now().millisecondsSinceEpoch}.jpg";
-
-      // Create a temp directory path
-      final tempDir = Directory.systemTemp;
+      final originalExtension = p.extension(file.path);
+      final tempDir = await getTemporaryDirectory();
+      final newFileName = "${prefix}_${DateTime.now().millisecondsSinceEpoch}$originalExtension";
       final newPath = "${tempDir.path}/$newFileName";
-
-      // Copy the file with the new name
-      final renamedFile = await file.copy(newPath);
-
-      // Your app details (customize this)
-      const appDetails = """
-📱 Shared via MyAwesomeApp  
-✨ Download now: https://example.com/app  
-""";
-
-      // Share the renamed file + app details
-      await Share.shareXFiles(
-        [XFile(renamedFile.path)],
-        text: appDetails,
-      );
+      return await file.copy(newPath);
     } catch (e) {
-      debugPrint("Error while sharing: $e");
+      debugPrint("Error copying file for sharing: $e");
+      return null;
     }
   }
 
+  void _onShare(BuildContext context) async {
+    final local = AppLocalizations.of(context)!;
+    final shareableFile = await _getShareableFile(prefix: "Status_hub");
+    if (shareableFile == null) return;
 
-  /// Repost to WhatsApp / WhatsApp Business
+    await Share.shareXFiles(
+      [XFile(shareableFile.path)],
+      text: local.appShareDetails,
+    );
+  }
+
   void _onRepost(BuildContext context) async {
+    final local = AppLocalizations.of(context)!;
+    final shareableFile = await _getShareableFile(prefix: "Status_hub_repost");
+    if (shareableFile == null) return;
+
     try {
-      // Get app cache directory (matches file_paths.xml)
-      final tempDir = await getTemporaryDirectory();
-
-      final newFileName =
-          "Status_hub_repost_${DateTime.now().millisecondsSinceEpoch}.jpg";
-      final newPath = "${tempDir.path}/$newFileName";
-
-      final renamedFile = await file.copy(newPath);
-
-      const appDetails = """
-📱 Reposted via MyAwesomeApp  
-✨ Download now: https://example.com/app  
-""";
-
       await SocialSharingPlus.shareToSocialMedia(
         SocialPlatform.whatsapp,
-        appDetails,
-        media: renamedFile.path,
+        local.appShareDetails,
+        media: shareableFile.path,
         isOpenBrowser: true,
       );
     } catch (e) {
       debugPrint("Error while reposting to WhatsApp: $e");
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Failed to open WhatsApp")),
+        SnackBar(content: Text(local.failedToOpenWhatsApp)),
       );
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -86,40 +73,37 @@ class ImageViewerBottomSheet extends StatelessWidget {
       color: Colors.white,
       child: SafeArea(
         top: false,
-        child: Container( // 👈 pushes the sheet down
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const DragIndicator(),
-              const DisclaimerBox(),
-              Container(
-                constraints: BoxConstraints(
-                  maxHeight: MediaQuery.of(context).size.height * 0.45,
-                ),
-                color: Colors.grey.shade100,
-                child: InteractiveViewer(
-                  panEnabled: true,
-                  minScale: 0.5,
-                  maxScale: 3.0,
-                  child: Hero(
-                    tag: file.path,
-                    child: Image.file(file, fit: BoxFit.contain),
-                  ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const DragIndicator(),
+            const DisclaimerBox(),
+            Container(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.45,
+              ),
+              color: Colors.grey.shade100,
+              child: InteractiveViewer(
+                panEnabled: true,
+                minScale: 0.5,
+                maxScale: 3.0,
+                child: Hero(
+                  tag: file.path,
+                  child: Image.file(file, fit: BoxFit.contain),
                 ),
               ),
-              const SizedBox(height: 20),
-              ActionButtons(
-                onShare: _onShare,
-                onRepost: ()=>_onRepost(context),
-                onSave: onSave ,
-                sheetContext: context,
-              ),
-              const SizedBox(height: 12),
-            ],
-          ),
+            ),
+            const SizedBox(height: 20),
+            ActionButtons(
+              onShare: () => _onShare(context),
+              onRepost: () => _onRepost(context),
+              onSave: isSaved ? null : onSave,
+              sheetContext: context,
+            ),
+            const SizedBox(height: 12),
+          ],
         ),
       ),
     );
   }
-
 }

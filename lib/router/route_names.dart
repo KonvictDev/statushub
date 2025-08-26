@@ -4,5 +4,6 @@ class RouteNames {
   static const String directMessage = 'direct-message';
   static const String settings = 'settings';
   static const String sticker = 'sticker';
-  static const String gif = 'gif';
+  static const String recoverMessage = 'recoverMessage';
+  static const String games = 'games';
 }
