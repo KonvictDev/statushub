@@ -69,8 +69,11 @@ class ImageViewerBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
     return Material(
-      color: Colors.white,
+      color: isDark ? Colors.black : Colors.white, // background adapts to theme
       child: SafeArea(
         top: false,
         child: Column(
@@ -82,7 +85,7 @@ class ImageViewerBottomSheet extends StatelessWidget {
               constraints: BoxConstraints(
                 maxHeight: MediaQuery.of(context).size.height * 0.45,
               ),
-              color: Colors.grey.shade100,
+              color: isDark ? Colors.grey[900] : Colors.grey.shade100, // container also adapts
               child: InteractiveViewer(
                 panEnabled: true,
                 minScale: 0.5,
@@ -106,4 +109,5 @@ class ImageViewerBottomSheet extends StatelessWidget {
       ),
     );
   }
+
 }

@@ -17,9 +17,9 @@
 
   "appShareDetails": "📱 Shared via MyAwesomeApp\n✨ Download now: https://example.com/app",
 
-  "share":"Share",
-  "repost":"Repost",
-  "saveToGallery":"Save to Gallery",
+  "share": "Share",
+  "repost": "Repost",
+  "saveToGallery": "Save to Gallery",
 
   "statusHub": "Status Hub",
   "hotStatus": "Hot Status",
@@ -29,9 +29,9 @@
   "saved": "Saved",
   "tools": "Tools",
   "failedToLoadStatuses": "Failed to load statuses",
-  "all":"All",
-  "images":"Images",
-  "videos":"Videos",
+  "all": "All",
+  "images": "Images",
+  "videos": "Videos",
 
   "cropImage": "Crop Image",
   "editImage": "Edit Image",
@@ -77,7 +77,7 @@
   "feedbackSubtitle": "Let us know your thoughts",
   "feedbackMessage": "Feedback: Please contact us at support@example.com",
 
-  "statusDisclaimer":"WhatsApp doesn’t officially allow saving statuses.This feature is unofficial — please use it responsibly.",
+  "statusDisclaimer": "WhatsApp doesn’t officially allow saving statuses.This feature is unofficial — please use it responsibly.",
 
   "privacyPolicy": "Privacy Policy",
   "privacySubtitle": "Read how we handle your data",
@@ -91,8 +91,8 @@
   "featureDirectMessageTitle": "Direct Message",
   "featureDirectMessageSubtitle": "Send messages without saving numbers.",
 
-  "featureStickerMakerTitle": "Sticker Maker",
-  "featureStickerMakerSubtitle": "Create your own custom stickers.",
+  "featureMessageEncryptTitle": "Secret Message",
+  "featureMessageEncryptSubtitle": "Send messages with encryption.",
 
   "featureRecoverMessageTitle": "Recover Messages",
   "featureRecoverMessageSubtitle": "Retrieve recently deleted chats.",
@@ -104,5 +104,32 @@
   "sortOldest": "Oldest",
 
   "noStatusesFound": "No statuses found",
-  "noStatusesHint": "Make sure you have viewed or saved statuses"
+  "noStatusesHint": "Make sure you have viewed or saved statuses",
+
+  "directMessageTitle": "Direct Message",
+  "directMessageHeader": "Message Without Saving Contact",
+  "directMessageSubtitle": "Enter a phone number and an optional message to start a chat.",
+
+  "phoneNumberLabel": "Phone Number",
+  "phoneNumberError": "Please enter a valid 10-digit number",
+
+  "optionalMessageLabel": "Optional Message",
+
+  "sendMessageButton": "Send Message",
+  "sendingLabel": "Sending...",
+
+  "errorLaunchWhatsapp": "Could not launch WhatsApp. Error:",
+
+  "enterMessageLabel": "Enter your message",
+  "encryptionModeLabel": "Encryption Mode",
+  "emojiMode": "Emoji Mode",
+  "symbolMode": "Symbol Mode",
+  "encryptButton": "Encrypt",
+  "decryptButton": "Decrypt",
+  "copyResultButton": "Copy Result",
+  "enterMessageError": "Please enter a message",
+  "noResultToCopy": "There is no result to copy",
+  "resultCopied": "Result copied to clipboard!",
+  "resultPlaceholder": "Your result will appear here.",
+  "messageTitle":"Secret Message"
 }

@@ -91,10 +91,10 @@
   "featureDirectMessageTitle": "நேரடி செய்தி",
   "featureDirectMessageSubtitle": "எண்களை சேமிக்காமல் செய்திகளை அனுப்பவும்.",
 
-  "featureStickerMakerTitle": "ஸ்டிக்கர் உருவாக்கி",
-  "featureStickerMakerSubtitle": "உங்களுக்கான தனிப்பயன் ஸ்டிக்கர்களை உருவாக்குங்கள்.",
+   "featureMessageEncryptTitle": "குறியீட்டு செய்தி",
+   "featureMessageEncryptSubtitle": "குறியாக்கத்துடன் செய்திகள் அனுப்பவும்",
 
-  "featureRecoverMessageTitle": "செய்திகளை மீட்கவும்",
+  "featureRecoverMessageTitle": "செய்தி மீட்கவும்",
   "featureRecoverMessageSubtitle": "சமீபத்தில் நீக்கப்பட்ட அரட்டைகளை மீட்டெடுக்கவும்.",
 
   "featureGamesTitle": "விளையாட்டுகள்",
@@ -104,5 +104,33 @@
   "sortOldest": "பழமையானது",
 
   "noStatusesFound": "எந்த நிலைகளும் கிடைக்கவில்லை",
-  "noStatusesHint": "நீங்கள் நிலைகளைப் பார்த்துள்ளீர்களா அல்லது சேமித்துள்ளீர்களா என்பதை உறுதிசெய்யவும்"
+  "noStatusesHint": "நீங்கள் நிலைகளைப் பார்த்துள்ளீர்களா அல்லது சேமித்துள்ளீர்களா என்பதை உறுதிசெய்யவும்",
+
+
+  "directMessageTitle": "நேரடி செய்தி",
+  "directMessageHeader": "எண் சேமிக்காமல் செய்தி அனுப்பு",
+  "directMessageSubtitle": "ஒரு தொலைபேசி எண்ணையும் விருப்பமான செய்தியையும் உள்ளிடவும்.",
+
+  "phoneNumberLabel": "தொலைபேசி எண்",
+  "phoneNumberError": "சரியான 10 இலக்க எண்ணை உள்ளிடவும்",
+
+  "optionalMessageLabel": "விருப்ப செய்தி",
+
+  "sendMessageButton": "செய்தி அனுப்பு",
+  "sendingLabel": "அனுப்புகிறது...",
+
+  "errorLaunchWhatsapp": "வாட்ஸ்அப்பை திறக்க முடியவில்லை. பிழை:",
+
+    "enterMessageLabel": "உங்கள் செய்தியை உள்ளிடவும்",
+    "encryptionModeLabel": "குறியாக்க நிலை",
+    "emojiMode": "எமோஜி நிலை",
+    "symbolMode": "சின்னம் நிலை",
+    "encryptButton": "குறியாக்கம்",
+    "decryptButton": "முறையாக குறியாக்கம் நீக்கு",
+    "copyResultButton": "முடிவை நகலெடு",
+    "enterMessageError": "தயவுசெய்து ஒரு செய்தியை உள்ளிடவும்",
+    "noResultToCopy": "நகலெடுக்க முடியாத முடிவு இல்லை",
+    "resultCopied": "முடிவு கிளிப்போர்டில் நகலெடுக்கப்பட்டது!",
+    "resultPlaceholder": "உங்கள் முடிவு இங்கே தோன்றும்.",
+    "messageTitle":"குறியீட்டு செய்தி"
 }

@@ -38,6 +38,7 @@ class _StatusTileState extends State<StatusTile>
   typed.Uint8List? _thumbnail;
   String? _duration;
 
+
   @override
   void initState() {
     super.initState();
@@ -47,6 +48,7 @@ class _StatusTileState extends State<StatusTile>
         _loadDuration();
       });
     }
+
   }
 
 
@@ -208,7 +210,7 @@ class _StatusTileState extends State<StatusTile>
   Widget build(BuildContext context) {
     super.build(context);
     final theme = Theme.of(context);
-
+    final isDark = theme.brightness == Brightness.dark;
     return GestureDetector(
       onTap: () => _openViewer(context),
       child: Hero(
@@ -310,8 +312,9 @@ class _StatusTileState extends State<StatusTile>
                 right: 12,
                 child: IconButton.filledTonal(
                   style: IconButton.styleFrom(
-                    backgroundColor:
-                    theme.colorScheme.primaryContainer.withOpacity(0.8),
+                    backgroundColor: isDark
+                        ? theme.colorScheme.surfaceVariant.withOpacity(0.7) // dark mode background
+                        : theme.colorScheme.primaryContainer.withOpacity(0.8), // light mode background
                     foregroundColor: theme.colorScheme.onPrimaryContainer,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -319,17 +322,11 @@ class _StatusTileState extends State<StatusTile>
                     padding: const EdgeInsets.all(10),
                     shadowColor: Colors.black26,
                   ),
-                  // Conditionally change the icon
                   icon: Icon(
-                    widget.isSaved
-                        ? Icons.share_rounded
-                        : Icons.save_alt_rounded,
+                    widget.isSaved ? Icons.share_rounded : Icons.save_alt_rounded,
                     size: 22,
                   ),
-                  // Conditionally change the action
-                  onPressed: () =>
-                  widget.isSaved ? _share() : _save(context),
-                  // Conditionally change the tooltip
+                  onPressed: () => widget.isSaved ? _share() : _save(context),
                   tooltip: widget.isSaved ? 'Share' : 'Save to gallery',
                 ),
               ),

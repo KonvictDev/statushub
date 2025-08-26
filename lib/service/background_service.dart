@@ -1,30 +1,26 @@
-// lib/background_service.dart
-
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart'; // Import for debugPrint
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 
-import '../utils/database_helper.dart'; // Import your database helper
+import '../utils/database_helper.dart';
 
-// The channel name must match the one in MainActivity.kt
-const notificationChannel = EventChannel('com.appsbyanandakumar.statushub/messages'); // ✅ UPDATE THIS LINE
+const notificationChannel = EventChannel('com.appsbyanandakumar.statushub/messages');
 
-
-// This function is the entry point for the background service
 @pragma('vm:entry-point')
 void onStart(ServiceInstance service) async {
-  // DartPluginRegistrant is needed to use plugins in a background isolate.
   DartPluginRegistrant.ensureInitialized();
 
-  // The service can communicate with the UI using `invoke`
   service.on('stopService').listen((event) {
     service.stopSelf();
   });
 
-  // Listen for notifications from the native side
   notificationChannel.receiveBroadcastStream().listen((dynamic event) {
+    // ✅ DEBUG PRINT 1: Check if the event is received from Kotlin
+    debugPrint("BACKGROUND_SERVICE: Received event from native side: $event");
+
     if (event is Map) {
       final message = CapturedMessage(
         sender: event['sender'] ?? 'Unknown Sender',
@@ -32,24 +28,23 @@ void onStart(ServiceInstance service) async {
         packageName: event['packageName'] ?? '',
         timestamp: DateTime.now(),
       );
-      // Save the captured message to the database
+
+      // ✅ DEBUG PRINT 2: Check if we are about to insert into the database
+      debugPrint("BACKGROUND_SERVICE: Attempting to insert message for sender: ${message.sender}");
       DatabaseHelper.instance.insertMessage(message);
     }
   });
 }
 
-// Function to initialize and start the background service
 Future<void> initializeService() async {
   final service = FlutterBackgroundService();
-
   await service.configure(
     androidConfiguration: AndroidConfiguration(
       onStart: onStart,
       isForegroundMode: true,
       autoStart: true,
     ),
-    iosConfiguration: IosConfiguration(), // iOS configuration (not applicable for this feature)
+    iosConfiguration: IosConfiguration(),
   );
-
   service.startService();
 }

@@ -4,7 +4,7 @@ import 'package:statushub/router/route_names.dart';
 import 'package:statushub/screens/games_screen.dart';
 import 'package:statushub/screens/recover_message_screen.dart';
 import 'package:statushub/screens/settings_screen.dart';
-import 'package:statushub/screens/sticker_maker_screen.dart';
+import 'package:statushub/screens/secret_message_screen.dart';
 
 import '../screens/home_screen.dart';
 import '../widgets/direct_message.dart';
@@ -38,11 +38,11 @@ class AppRouter {
         ),
       ),
       GoRoute(
-        path: '/sticker',
-        name: RouteNames.sticker,
+        path: '/messageEncrypt',
+        name: RouteNames.messageEncrypt,
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          child: StickerMakerScreen(),
+          child: SecretMessageEncrypter(),
         ),
       ),
       GoRoute(

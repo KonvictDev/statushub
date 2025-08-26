@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:statushub/constants/app_colors.dart';
 import '../l10n/app_localizations.dart';
 
 class ActionButtons extends StatelessWidget {
@@ -29,8 +30,18 @@ class ActionButtons extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final local = AppLocalizations.of(context)!;
+
+// Use fixed colors for all themes with opacity
+    final primaryBg = AppColors.primary.withOpacity(0.6);    // 80% opacity
+    final primaryFg = AppColors.white;                        // text stays fully opaque
+
+    final secondaryBg = AppColors.primaryDark.withOpacity(0.6);
+    final secondaryFg = AppColors.white;
+
+    final tertiaryBg = AppColors.primaryLight.withOpacity(0.6);
+    final tertiaryFg = AppColors.white;
+
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -46,8 +57,8 @@ class ActionButtons extends StatelessWidget {
                   icon: const Icon(Icons.share_rounded),
                   label: Text(local.share),
                   style: FilledButton.styleFrom(
-                    backgroundColor: colorScheme.primaryContainer,
-                    foregroundColor: colorScheme.onPrimaryContainer,
+                    backgroundColor: primaryBg,
+                    foregroundColor: primaryFg,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -62,8 +73,8 @@ class ActionButtons extends StatelessWidget {
                   icon: const Icon(Icons.repeat_rounded),
                   label: Text(local.repost),
                   style: FilledButton.styleFrom(
-                    backgroundColor: colorScheme.secondaryContainer,
-                    foregroundColor: colorScheme.onSecondaryContainer,
+                    backgroundColor: secondaryBg,
+                    foregroundColor: secondaryFg,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -80,8 +91,8 @@ class ActionButtons extends StatelessWidget {
               icon: const Icon(Icons.download_rounded),
               label: Text(local.saveToGallery),
               style: FilledButton.styleFrom(
-                backgroundColor: colorScheme.tertiaryContainer,
-                foregroundColor: colorScheme.onTertiaryContainer,
+                backgroundColor: tertiaryBg,
+                foregroundColor: tertiaryFg,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),

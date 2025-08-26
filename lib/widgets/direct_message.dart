@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:flutter/services.dart';// ✅ Ensure this import
 import 'package:statushub/widgets/whatsapp_background.dart';
 
+import '../l10n/app_localizations.dart';
 import '../service/whatsapp_service.dart';
 
 const String _defaultCountryCode = '+91';
@@ -69,7 +70,9 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Could not launch WhatsApp. Error: ${e.message}'),
+            content: Text(
+              '${AppLocalizations.of(context)!.errorLaunchWhatsapp} ${e.message}',
+            ),
             backgroundColor: Theme.of(context).colorScheme.error,
           ),
         );
@@ -84,10 +87,11 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final local = AppLocalizations.of(context)!; // ✅ Localizations reference
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Direct Message"),
+        title: Text(local.directMessageTitle),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.transparent,
@@ -109,7 +113,7 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
                     children: [
                       const SizedBox(height: 20),
                       Text(
-                        "Message Without Saving Contact",
+                        local.directMessageHeader,
                         style: theme.textTheme.headlineSmall?.copyWith(
                           fontWeight: FontWeight.w600,
                           color: theme.colorScheme.onSurface,
@@ -118,7 +122,7 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "Enter a phone number and an optional message to start a chat.",
+                        local.directMessageSubtitle,
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: theme.colorScheme.onSurfaceVariant,
                         ),
@@ -126,20 +130,20 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
                       ),
                       const SizedBox(height: 32),
 
-                      // ✅ Optimized phone number field with ValueListenableBuilder
+                      // ✅ Phone number field
                       ValueListenableBuilder<TextEditingValue>(
                         valueListenable: _numberController,
                         builder: (context, value, _) {
                           return _buildInputField(
                             controller: _numberController,
                             focusNode: _numberFocusNode,
-                            labelText: 'Phone Number',
+                            labelText: local.phoneNumberLabel,
                             keyboardType: TextInputType.phone,
                             prefixText: '$_defaultCountryCode ',
                             validator: (value) {
                               final cleaned = value?.replaceAll(RegExp(r'\D'), '');
                               if (cleaned == null || cleaned.length < 10) {
-                                return 'Please enter a valid 10-digit number';
+                                return local.phoneNumberError;
                               }
                               return null;
                             },
@@ -151,14 +155,14 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
                       ),
                       const SizedBox(height: 20),
 
-                      // ✅ Optimized message field with ValueListenableBuilder
+                      // ✅ Message field
                       ValueListenableBuilder<TextEditingValue>(
                         valueListenable: _messageController,
                         builder: (context, value, _) {
                           return _buildInputField(
                             controller: _messageController,
                             focusNode: _messageFocusNode,
-                            labelText: 'Optional Message',
+                            labelText: local.optionalMessageLabel,
                             maxLines: 5,
                             suffixIcon: value.text.isNotEmpty
                                 ? IconButton(
@@ -171,7 +175,7 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
                       ),
                       const SizedBox(height: 30),
 
-                      _buildSendButton(),
+                      _buildSendButton(local),
                     ],
                   ),
                 ),
@@ -212,7 +216,10 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
           suffixIcon: suffixIcon,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: BorderSide.none,
+            borderSide: BorderSide(
+              color: theme.colorScheme.primary, // Set the border color
+              width: 1.5,                        // Border thickness
+            ),
           ),
           filled: true,
           fillColor: theme.colorScheme.surface.withOpacity(0.8),
@@ -221,7 +228,7 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
     );
   }
 
-  Widget _buildSendButton() {
+  Widget _buildSendButton(AppLocalizations local) {
     return AnimatedScale(
       scale: _isLoading ? 0.95 : 1.0,
       duration: _animationDuration,
@@ -238,7 +245,7 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
           ),
         )
             : const Icon(Icons.send_rounded),
-        label: Text(_isLoading ? 'Sending...' : 'Send Message'),
+        label: Text(_isLoading ? local.sendingLabel : local.sendMessageButton),
         style: FilledButton.styleFrom(
           padding: const EdgeInsets.symmetric(vertical: 16),
           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),

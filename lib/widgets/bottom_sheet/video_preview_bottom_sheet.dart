@@ -124,8 +124,10 @@ class _VideoPreviewBottomSheetState extends State<VideoPreviewBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
     return Material(
-      color: Colors.white,
+      color: isDark ? Colors.black : Colors.white,
       child: SafeArea(
         top: false,
         child: Column(

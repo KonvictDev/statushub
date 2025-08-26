@@ -1,9 +1,9 @@
-// lib/database_helper.dart
-
+import 'dart:async'; // Import async library
+import 'package:flutter/cupertino.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-// The data model for our captured messages
+// The data model class (no changes needed)
 class CapturedMessage {
   final int? id;
   final String sender;
@@ -19,7 +19,6 @@ class CapturedMessage {
     required this.timestamp,
   });
 
-  // A method to convert our object to a map for database insertion
   Map<String, dynamic> toMap() {
     return {
       'id': id,
@@ -32,29 +31,27 @@ class CapturedMessage {
 }
 
 class DatabaseHelper {
-  // A private constructor to prevent multiple instances
   DatabaseHelper._privateConstructor();
-  // The single, static instance of the class (Singleton pattern)
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
-
   static Database? _database;
 
-  // Getter for the database. Initializes it if it's null.
+  // ✅ NEW: Add a StreamController to broadcast updates
+  final _streamController = StreamController<void>.broadcast();
+
+  // ✅ NEW: Expose the stream for the UI to listen to
+  Stream<void> get onMessageAdded => _streamController.stream;
+
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDatabase();
     return _database!;
   }
 
-  // Initializes the database: gets the path and opens the database
   _initDatabase() async {
     String path = join(await getDatabasesPath(), 'messages.db');
-    return await openDatabase(path,
-        version: 1,
-        onCreate: _onCreate);
+    return await openDatabase(path, version: 1, onCreate: _onCreate);
   }
 
-  // Creates the database table when the database is first created
   Future _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE messages (
@@ -67,16 +64,24 @@ class DatabaseHelper {
       ''');
   }
 
-  // Method to insert a message into the database
   Future<int> insertMessage(CapturedMessage message) async {
     Database db = await instance.database;
-    return await db.insert('messages', message.toMap());
+    debugPrint("DATABASE_HELPER: Inserting message: '${message.message}'");
+    final id = await db.insert('messages', message.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace);
+
+    // ✅ NEW: After inserting, send a signal on the stream
+    debugPrint("DATABASE_HELPER: Inserted with ID: $id. Broadcasting update.");
+    _streamController.add(null);
+
+    return id;
   }
 
-  // Method to get all messages from the database
   Future<List<CapturedMessage>> getMessages() async {
     Database db = await instance.database;
-    final List<Map<String, dynamic>> maps = await db.query('messages', orderBy: 'timestamp DESC');
+    final List<Map<String, dynamic>> maps =
+    await db.query('messages', orderBy: 'timestamp DESC');
+    debugPrint("DATABASE_HELPER: Fetched ${maps.length} messages from DB.");
 
     return List.generate(maps.length, (i) {
       return CapturedMessage(
@@ -87,5 +92,10 @@ class DatabaseHelper {
         timestamp: DateTime.parse(maps[i]['timestamp']),
       );
     });
+  }
+
+  // ✅ NEW: Good practice to add a dispose method
+  void dispose() {
+    _streamController.close();
   }
 }

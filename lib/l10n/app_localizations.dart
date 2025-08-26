@@ -536,17 +536,17 @@ abstract class AppLocalizations {
   /// **'Send messages without saving numbers.'**
   String get featureDirectMessageSubtitle;
 
-  /// No description provided for @featureStickerMakerTitle.
+  /// No description provided for @featureMessageEncryptTitle.
   ///
   /// In en, this message translates to:
-  /// **'Sticker Maker'**
-  String get featureStickerMakerTitle;
+  /// **'Secret Message'**
+  String get featureMessageEncryptTitle;
 
-  /// No description provided for @featureStickerMakerSubtitle.
+  /// No description provided for @featureMessageEncryptSubtitle.
   ///
   /// In en, this message translates to:
-  /// **'Create your own custom stickers.'**
-  String get featureStickerMakerSubtitle;
+  /// **'Send messages with encryption.'**
+  String get featureMessageEncryptSubtitle;
 
   /// No description provided for @featureRecoverMessageTitle.
   ///
@@ -595,6 +595,132 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Make sure you have viewed or saved statuses'**
   String get noStatusesHint;
+
+  /// No description provided for @directMessageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct Message'**
+  String get directMessageTitle;
+
+  /// No description provided for @directMessageHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'Message Without Saving Contact'**
+  String get directMessageHeader;
+
+  /// No description provided for @directMessageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a phone number and an optional message to start a chat.'**
+  String get directMessageSubtitle;
+
+  /// No description provided for @phoneNumberLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Phone Number'**
+  String get phoneNumberLabel;
+
+  /// No description provided for @phoneNumberError.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid 10-digit number'**
+  String get phoneNumberError;
+
+  /// No description provided for @optionalMessageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Optional Message'**
+  String get optionalMessageLabel;
+
+  /// No description provided for @sendMessageButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Send Message'**
+  String get sendMessageButton;
+
+  /// No description provided for @sendingLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Sending...'**
+  String get sendingLabel;
+
+  /// No description provided for @errorLaunchWhatsapp.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not launch WhatsApp. Error:'**
+  String get errorLaunchWhatsapp;
+
+  /// No description provided for @enterMessageLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter your message'**
+  String get enterMessageLabel;
+
+  /// No description provided for @encryptionModeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Encryption Mode'**
+  String get encryptionModeLabel;
+
+  /// No description provided for @emojiMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Emoji Mode'**
+  String get emojiMode;
+
+  /// No description provided for @symbolMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Symbol Mode'**
+  String get symbolMode;
+
+  /// No description provided for @encryptButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Encrypt'**
+  String get encryptButton;
+
+  /// No description provided for @decryptButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Decrypt'**
+  String get decryptButton;
+
+  /// No description provided for @copyResultButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy Result'**
+  String get copyResultButton;
+
+  /// No description provided for @enterMessageError.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a message'**
+  String get enterMessageError;
+
+  /// No description provided for @noResultToCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'There is no result to copy'**
+  String get noResultToCopy;
+
+  /// No description provided for @resultCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Result copied to clipboard!'**
+  String get resultCopied;
+
+  /// No description provided for @resultPlaceholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Your result will appear here.'**
+  String get resultPlaceholder;
+
+  /// No description provided for @messageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Secret Message'**
+  String get messageTitle;
 }
 
 class _AppLocalizationsDelegate

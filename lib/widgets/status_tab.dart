@@ -142,9 +142,8 @@ class _StatusTabState extends State<StatusTab> {
                     physics: const BouncingScrollPhysics(),
                     child: Row(
                       children: MediaType.values.map((type) {
-                        // Use localization instead of hardcoded names
-                        String label;
                         final local = AppLocalizations.of(context)!;
+                        String label;
                         switch (type) {
                           case MediaType.all:
                             label = local.all;
@@ -157,10 +156,22 @@ class _StatusTabState extends State<StatusTab> {
                             break;
                         }
 
+                        // Determine the current theme
+                        final isDark = Theme.of(context).brightness == Brightness.dark;
+
                         return Padding(
                           padding: const EdgeInsets.only(right: 8),
                           child: ChoiceChip(
-                            label: Text(label),
+                            label: Text(
+                              label,
+                              style: TextStyle(
+                                color: _selectedType == type
+                                    ? Colors.black87 // Text color when selected
+                                    : isDark
+                                    ? Colors.white70 // Text color in dark mode
+                                    : Colors.black87, // Text color in light mode
+                              ),
+                            ),
                             selected: _selectedType == type,
                             onSelected: (_) => setState(() => _selectedType = type),
                             selectedColor: AppColors.chipSelected,
@@ -171,7 +182,8 @@ class _StatusTabState extends State<StatusTab> {
                       }).toList(),
                     ),
                   ),
-                ),
+                )
+
 
               ],
             ),

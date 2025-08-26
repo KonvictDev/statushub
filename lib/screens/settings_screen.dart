@@ -6,11 +6,10 @@ import 'package:share_plus/share_plus.dart';
 
 import '../constants/app_strings.dart';
 import '../l10n/app_localizations.dart';
-import '../providers/locale_provider.dart'; // 👈 Import Riverpod provider
-import '../service/app_settings.dart';
+import '../providers/locale_provider.dart';
 import '../utils/cache_manager.dart';
+import '../providers/theme_provider.dart';
 
-// 1. Convert to a ConsumerStatefulWidget
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
@@ -18,19 +17,15 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-// 2. Extend ConsumerState instead of State
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   int _cacheSizeMB = 0;
   bool _loading = true;
-  ThemeMode _themeMode = ThemeMode.system;
-
   final InAppReview _inAppReview = InAppReview.instance;
 
   @override
   void initState() {
     super.initState();
     _loadCacheSize();
-    _loadTheme(); // Renamed from _loadSettings
   }
 
   Future<void> _loadCacheSize() async {
@@ -67,26 +62,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  // Load only the theme now, as locale is handled by Riverpod
-  Future<void> _loadTheme() async {
-    final theme = await AppSettings.loadThemeMode();
-    if (mounted) {
-      setState(() {
-        _themeMode = theme;
-      });
-    }
-  }
-
-  void _changeThemeMode(ThemeMode mode) {
-    setState(() => _themeMode = mode);
-    AppSettings.saveThemeMode(mode);
-  }
-
   Future<void> _rateUs() async {
     if (await _inAppReview.isAvailable()) {
       _inAppReview.requestReview();
     } else {
-      _inAppReview.openStoreListing(appStoreId: "com.example.app"); // Replace with your app ID
+      _inAppReview.openStoreListing(appStoreId: "com.example.app");
     }
   }
 
@@ -97,9 +77,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final loc = AppLocalizations.of(context)!;
-
-    // 3. Watch the provider to get the current locale for the UI
     final currentLocale = ref.watch(localeProvider);
+    final currentTheme = ref.watch(themeProvider);
 
     return Scaffold(
       appBar: AppBar(title: Text(loc.settings)),
@@ -110,9 +89,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           _buildCacheCard(loc),
           const SizedBox(height: 12),
           _buildHeader(loc.preferences),
-          _buildThemeCard(loc),
+          _buildThemeCard(loc, currentTheme),
           const SizedBox(height: 12),
-          _buildLanguageCard(loc, currentLocale), // 👈 Pass the locale from the provider
+          _buildLanguageCard(loc, currentLocale),
           const SizedBox(height: 12),
           _buildHeader(loc.about),
           _buildRateCard(loc),
@@ -145,20 +124,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget _buildCard({required Widget child}) {
     return Card(
       elevation: 2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: child,
     );
   }
 
-  // --- UI Builder Methods ---
+  /// Generic reusable simple card for ListTile
+  Widget _buildSimpleCard({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    VoidCallback? onTap,
+  }) =>
+      _buildCard(
+        child: ListTile(
+          onTap: onTap,
+          leading: Icon(icon),
+          title: Text(title),
+          subtitle: subtitle != null ? Text(subtitle) : null,
+        ),
+      );
 
   Widget _buildCacheCard(AppLocalizations loc) => _buildCard(
     child: ListTile(
       leading: const Icon(Icons.storage_rounded),
       title: Text(loc.cache),
-      subtitle: _loading ? Text(loc.loading) : Text("$_cacheSizeMB ${loc.usedSuffix}"),
+      subtitle:
+      _loading ? Text(loc.loading) : Text("$_cacheSizeMB ${loc.usedSuffix}"),
       trailing: FilledButton.icon(
         onPressed: _loading ? null : _clearCache,
         icon: const Icon(Icons.delete_sweep_rounded),
@@ -167,107 +159,104 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ),
   );
 
-  Widget _buildThemeCard(AppLocalizations loc) => _buildCard(
-    child: Column(
-      children: [
-        ListTile(
-          leading: const Icon(Icons.brightness_6_rounded),
-          title: Text(loc.theme),
-          subtitle: Text(loc.chooseTheme),
+  Widget _buildThemeCard(AppLocalizations loc, ThemeMode currentTheme) =>
+      _buildCard(
+        child: Column(
+          children: [
+            ListTile(
+              leading: const Icon(Icons.brightness_6_rounded),
+              title: Text(loc.theme),
+              subtitle: Text(loc.chooseTheme),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 5, bottom: 12, right: 5),
+              child: SegmentedButton<ThemeMode>(
+                segments: [
+                  ButtonSegment(
+                    value: ThemeMode.light,
+                    icon: const Icon(Icons.light_mode_rounded),
+                    label: Text(loc.light),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.dark,
+                    icon: const Icon(Icons.dark_mode_rounded),
+                    label: Text(loc.dark),
+                  ),
+                  ButtonSegment(
+                    value: ThemeMode.system,
+                    icon: const Icon(Icons.phone_android_rounded),
+                    label: Text(loc.system),
+                  ),
+                ],
+                selected: {currentTheme},
+                onSelectionChanged: (newSelection) {
+                  ref.read(themeProvider.notifier).setTheme(newSelection.first);
+                },
+              ),
+            ),
+          ],
         ),
-        Padding(
-          padding: const EdgeInsets.only(left: 5, bottom: 12, right: 5),
-          child: SegmentedButton<ThemeMode>(
-            segments: [
-              ButtonSegment(
-                value: ThemeMode.light,
-                icon: const Icon(Icons.light_mode_rounded),
-                label: Text(loc.light),
-              ),
-              ButtonSegment(
-                value: ThemeMode.dark,
-                icon: const Icon(Icons.dark_mode_rounded),
-                label: Text(loc.dark),
-              ),
-              ButtonSegment(
-                value: ThemeMode.system,
-                icon: const Icon(Icons.phone_android_rounded),
-                label: Text(loc.system),
-              ),
-            ],
-            selected: {_themeMode},
-            onSelectionChanged: (newSelection) {
-              _changeThemeMode(newSelection.first);
+      );
+
+  Widget _buildLanguageCard(AppLocalizations loc, Locale currentLocale) =>
+      _buildCard(
+        child: ListTile(
+          leading: const Icon(Icons.language_rounded),
+          title: Text(loc.appLanguage),
+          subtitle:
+          Text(currentLocale.languageCode == "ta" ? "தமிழ்" : "English"),
+          trailing: DropdownButton<String>(
+            value: currentLocale.languageCode,
+            onChanged: (value) {
+              if (value != null) {
+                ref.read(localeProvider.notifier).setLocale(value);
+              }
             },
+            items: const [
+              DropdownMenuItem(value: 'en', child: Text('English')),
+              DropdownMenuItem(value: 'ta', child: Text('தமிழ்')),
+            ],
           ),
         ),
-      ],
-    ),
-  );
+      );
 
-  // 4. Update the Language Card to use the provider
-  Widget _buildLanguageCard(AppLocalizations loc, Locale currentLocale) => _buildCard(
-    child: ListTile(
-      leading: const Icon(Icons.language_rounded),
-      title: Text(loc.appLanguage),
-      subtitle: Text(currentLocale.languageCode == "ta" ? "தமிழ்" : "English"),
-      trailing: DropdownButton<String>(
-        value: currentLocale.languageCode,
-        onChanged: (value) {
-          if (value != null) {
-            // Use ref.read to call the method on our notifier
-            ref.read(localeProvider.notifier).setLocale(value);
-          }
-        },
-        items: const [
-          DropdownMenuItem(value: 'en', child: Text('English')),
-          DropdownMenuItem(value: 'ta', child: Text('தமிழ்')),
-        ],
-      ),
-    ),
-  );
+  // Refactored cards using _buildSimpleCard
+  Widget _buildRateCard(AppLocalizations loc) =>
+      _buildSimpleCard(
+        icon: Icons.star_rate_rounded,
+        title: loc.rateUs,
+        subtitle: loc.rateSubtitle,
+        onTap: _rateUs,
+      );
 
-  Widget _buildRateCard(AppLocalizations loc) => _buildCard(
-    child: ListTile(
-      onTap: _rateUs,
-      leading: const Icon(Icons.star_rate_rounded),
-      title: Text(loc.rateUs),
-      subtitle: Text(loc.rateSubtitle),
-    ),
-  );
+  Widget _buildShareCard(AppLocalizations loc) =>
+      _buildSimpleCard(
+        icon: Icons.share_rounded,
+        title: loc.shareApp,
+        subtitle: loc.shareSubtitle,
+        onTap: _shareApp,
+      );
 
-  Widget _buildShareCard(AppLocalizations loc) => _buildCard(
-    child: ListTile(
-      onTap: _shareApp,
-      leading: const Icon(Icons.share_rounded),
-      title: Text(loc.shareApp),
-      subtitle: Text(loc.shareSubtitle),
-    ),
-  );
+  Widget _buildFeedbackCard(AppLocalizations loc) =>
+      _buildSimpleCard(
+        icon: Icons.feedback_rounded,
+        title: loc.sendFeedback,
+        subtitle: loc.feedbackSubtitle,
+        onTap: _sendFeedback,
+      );
 
-  Widget _buildFeedbackCard(AppLocalizations loc) => _buildCard(
-    child: ListTile(
-      onTap: _sendFeedback,
-      leading: const Icon(Icons.feedback_rounded),
-      title: Text(loc.sendFeedback),
-      subtitle: Text(loc.feedbackSubtitle),
-    ),
-  );
+  Widget _buildPrivacyPolicyCard(AppLocalizations loc) =>
+      _buildSimpleCard(
+        icon: Icons.privacy_tip_rounded,
+        title: loc.privacyPolicy,
+        subtitle: loc.privacySubtitle,
+        onTap: _openPrivacyPolicy,
+      );
 
-  Widget _buildPrivacyPolicyCard(AppLocalizations loc) => _buildCard(
-    child: ListTile(
-      onTap: _openPrivacyPolicy,
-      leading: const Icon(Icons.privacy_tip_rounded),
-      title: Text(loc.privacyPolicy),
-      subtitle: Text(loc.privacySubtitle),
-    ),
-  );
-
-  Widget _buildInfoCard(AppLocalizations loc) => _buildCard(
-    child: ListTile(
-      leading: const Icon(Icons.info_outline_rounded),
-      title: Text(loc.appInfo),
-      subtitle: Text(loc.version),
-    ),
-  );
+  Widget _buildInfoCard(AppLocalizations loc) =>
+      _buildSimpleCard(
+        icon: Icons.info_outline_rounded,
+        title: loc.appInfo,
+        subtitle: loc.version,
+      );
 }

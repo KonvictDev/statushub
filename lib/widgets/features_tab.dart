@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:statushub/router/route_names.dart';
-import 'package:statushub/constants/app_strings.dart'; // ✅ central strings
+import 'package:statushub/constants/app_strings.dart';
+
+import '../l10n/app_localizations.dart'; // ✅ central strings
 
 class FeaturesTab extends StatelessWidget {
   const FeaturesTab({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final local = AppLocalizations.of(context)!;
     Widget _buildFeatureTile({
       required IconData icon,
       required String title,
@@ -96,29 +99,30 @@ class FeaturesTab extends StatelessWidget {
           children: [
             _buildFeatureTile(
               icon: Icons.message_rounded,
-              title: AppStrings.featureDirectMessageTitle,
-              subtitle: AppStrings.featureDirectMessageSubtitle,
+              title: local.featureDirectMessageTitle,
+              subtitle: local.featureDirectMessageSubtitle,
               routeName: RouteNames.directMessage,
             ),
             _buildFeatureTile(
-              icon: Icons.sticky_note_2_rounded,
-              iconColor: Colors.purple,
-              title: AppStrings.featureStickerMakerTitle,
-              subtitle: AppStrings.featureStickerMakerSubtitle,
-              routeName: RouteNames.sticker,
+              icon: Icons.lock_rounded, // A lock icon suits "encryption"
+              iconColor: Colors.blue, // Choose a distinct color for this feature
+              title: local.featureMessageEncryptTitle, // Add to your localization
+              subtitle: local.featureMessageEncryptSubtitle, // Add to your localization
+              routeName: RouteNames.messageEncrypt, // Define a new route for encryption screen
             ),
+
             _buildFeatureTile(
               icon: Icons.restore_from_trash_rounded,
               iconColor: Colors.green,
-              title: AppStrings.featureRecoverMessageTitle,
-              subtitle: AppStrings.featureRecoverMessageSubtitle,
+              title: local.featureRecoverMessageTitle,
+              subtitle: local.featureRecoverMessageSubtitle,
               routeName: RouteNames.recoverMessage,
             ),
             _buildFeatureTile(
               icon: Icons.gamepad_rounded,
               iconColor: Colors.orange,
-              title: AppStrings.featureGamesTitle,
-              subtitle: AppStrings.featureGamesSubtitle,
+              title: local.featureGamesTitle,
+              subtitle: local.featureGamesSubtitle,
               routeName: RouteNames.games,
             ),
           ],

@@ -234,10 +234,10 @@ class AppLocalizationsEn extends AppLocalizations {
       'Send messages without saving numbers.';
 
   @override
-  String get featureStickerMakerTitle => 'Sticker Maker';
+  String get featureMessageEncryptTitle => 'Secret Message';
 
   @override
-  String get featureStickerMakerSubtitle => 'Create your own custom stickers.';
+  String get featureMessageEncryptSubtitle => 'Send messages with encryption.';
 
   @override
   String get featureRecoverMessageTitle => 'Recover Messages';
@@ -263,4 +263,68 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noStatusesHint => 'Make sure you have viewed or saved statuses';
+
+  @override
+  String get directMessageTitle => 'Direct Message';
+
+  @override
+  String get directMessageHeader => 'Message Without Saving Contact';
+
+  @override
+  String get directMessageSubtitle =>
+      'Enter a phone number and an optional message to start a chat.';
+
+  @override
+  String get phoneNumberLabel => 'Phone Number';
+
+  @override
+  String get phoneNumberError => 'Please enter a valid 10-digit number';
+
+  @override
+  String get optionalMessageLabel => 'Optional Message';
+
+  @override
+  String get sendMessageButton => 'Send Message';
+
+  @override
+  String get sendingLabel => 'Sending...';
+
+  @override
+  String get errorLaunchWhatsapp => 'Could not launch WhatsApp. Error:';
+
+  @override
+  String get enterMessageLabel => 'Enter your message';
+
+  @override
+  String get encryptionModeLabel => 'Encryption Mode';
+
+  @override
+  String get emojiMode => 'Emoji Mode';
+
+  @override
+  String get symbolMode => 'Symbol Mode';
+
+  @override
+  String get encryptButton => 'Encrypt';
+
+  @override
+  String get decryptButton => 'Decrypt';
+
+  @override
+  String get copyResultButton => 'Copy Result';
+
+  @override
+  String get enterMessageError => 'Please enter a message';
+
+  @override
+  String get noResultToCopy => 'There is no result to copy';
+
+  @override
+  String get resultCopied => 'Result copied to clipboard!';
+
+  @override
+  String get resultPlaceholder => 'Your result will appear here.';
+
+  @override
+  String get messageTitle => 'Secret Message';
 }

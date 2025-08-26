@@ -236,14 +236,14 @@ class AppLocalizationsTa extends AppLocalizations {
       'எண்களை சேமிக்காமல் செய்திகளை அனுப்பவும்.';
 
   @override
-  String get featureStickerMakerTitle => 'ஸ்டிக்கர் உருவாக்கி';
+  String get featureMessageEncryptTitle => 'குறியீட்டு செய்தி';
 
   @override
-  String get featureStickerMakerSubtitle =>
-      'உங்களுக்கான தனிப்பயன் ஸ்டிக்கர்களை உருவாக்குங்கள்.';
+  String get featureMessageEncryptSubtitle =>
+      'குறியாக்கத்துடன் செய்திகள் அனுப்பவும்';
 
   @override
-  String get featureRecoverMessageTitle => 'செய்திகளை மீட்கவும்';
+  String get featureRecoverMessageTitle => 'செய்தி மீட்கவும்';
 
   @override
   String get featureRecoverMessageSubtitle =>
@@ -267,4 +267,68 @@ class AppLocalizationsTa extends AppLocalizations {
   @override
   String get noStatusesHint =>
       'நீங்கள் நிலைகளைப் பார்த்துள்ளீர்களா அல்லது சேமித்துள்ளீர்களா என்பதை உறுதிசெய்யவும்';
+
+  @override
+  String get directMessageTitle => 'நேரடி செய்தி';
+
+  @override
+  String get directMessageHeader => 'எண் சேமிக்காமல் செய்தி அனுப்பு';
+
+  @override
+  String get directMessageSubtitle =>
+      'ஒரு தொலைபேசி எண்ணையும் விருப்பமான செய்தியையும் உள்ளிடவும்.';
+
+  @override
+  String get phoneNumberLabel => 'தொலைபேசி எண்';
+
+  @override
+  String get phoneNumberError => 'சரியான 10 இலக்க எண்ணை உள்ளிடவும்';
+
+  @override
+  String get optionalMessageLabel => 'விருப்ப செய்தி';
+
+  @override
+  String get sendMessageButton => 'செய்தி அனுப்பு';
+
+  @override
+  String get sendingLabel => 'அனுப்புகிறது...';
+
+  @override
+  String get errorLaunchWhatsapp => 'வாட்ஸ்அப்பை திறக்க முடியவில்லை. பிழை:';
+
+  @override
+  String get enterMessageLabel => 'உங்கள் செய்தியை உள்ளிடவும்';
+
+  @override
+  String get encryptionModeLabel => 'குறியாக்க நிலை';
+
+  @override
+  String get emojiMode => 'எமோஜி நிலை';
+
+  @override
+  String get symbolMode => 'சின்னம் நிலை';
+
+  @override
+  String get encryptButton => 'குறியாக்கம்';
+
+  @override
+  String get decryptButton => 'முறையாக குறியாக்கம் நீக்கு';
+
+  @override
+  String get copyResultButton => 'முடிவை நகலெடு';
+
+  @override
+  String get enterMessageError => 'தயவுசெய்து ஒரு செய்தியை உள்ளிடவும்';
+
+  @override
+  String get noResultToCopy => 'நகலெடுக்க முடியாத முடிவு இல்லை';
+
+  @override
+  String get resultCopied => 'முடிவு கிளிப்போர்டில் நகலெடுக்கப்பட்டது!';
+
+  @override
+  String get resultPlaceholder => 'உங்கள் முடிவு இங்கே தோன்றும்.';
+
+  @override
+  String get messageTitle => 'குறியீட்டு செய்தி';
 }
