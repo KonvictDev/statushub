@@ -1,15 +1,16 @@
-import 'dart:async'; // Import async library
-import 'package:flutter/cupertino.dart';
+import 'dart:async';
+import 'package:flutter/widgets.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-// The data model class (no changes needed)
 class CapturedMessage {
   final int? id;
   final String sender;
   final String message;
   final String packageName;
   final DateTime timestamp;
+  final String? notificationKey;
+  final bool isDeleted;
 
   CapturedMessage({
     this.id,
@@ -17,6 +18,8 @@ class CapturedMessage {
     required this.message,
     required this.packageName,
     required this.timestamp,
+    this.notificationKey,
+    this.isDeleted = false,
   });
 
   Map<String, dynamic> toMap() {
@@ -26,6 +29,8 @@ class CapturedMessage {
       'message': message,
       'packageName': packageName,
       'timestamp': timestamp.toIso8601String(),
+      'notificationKey': notificationKey,
+      'isDeleted': isDeleted ? 1 : 0,
     };
   }
 }
@@ -34,12 +39,6 @@ class DatabaseHelper {
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
   static Database? _database;
-
-  // ✅ NEW: Add a StreamController to broadcast updates
-  final _streamController = StreamController<void>.broadcast();
-
-  // ✅ NEW: Expose the stream for the UI to listen to
-  Stream<void> get onMessageAdded => _streamController.stream;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -59,43 +58,94 @@ class DatabaseHelper {
         sender TEXT NOT NULL,
         message TEXT NOT NULL,
         packageName TEXT NOT NULL,
-        timestamp TEXT NOT NULL
+        timestamp TEXT NOT NULL,
+        notificationKey TEXT,
+        isDeleted INTEGER NOT NULL DEFAULT 0
       )
-      ''');
+    ''');
   }
 
+  /// ✅ Always inserts a new row, never replaces
   Future<int> insertMessage(CapturedMessage message) async {
     Database db = await instance.database;
     debugPrint("DATABASE_HELPER: Inserting message: '${message.message}'");
-    final id = await db.insert('messages', message.toMap(),
-        conflictAlgorithm: ConflictAlgorithm.replace);
-
-    // ✅ NEW: After inserting, send a signal on the stream
-    debugPrint("DATABASE_HELPER: Inserted with ID: $id. Broadcasting update.");
-    _streamController.add(null);
-
+    final id = await db.insert('messages', message.toMap());
     return id;
   }
 
+  /// ✅ Get ALL messages (including deleted)
   Future<List<CapturedMessage>> getMessages() async {
     Database db = await instance.database;
     final List<Map<String, dynamic>> maps =
     await db.query('messages', orderBy: 'timestamp DESC');
+    debugPrint("DATABASE_HELPER: Raw rows = $maps");
     debugPrint("DATABASE_HELPER: Fetched ${maps.length} messages from DB.");
+    return _mapToMessages(maps);
+  }
 
+  /// ✅ Get only non-deleted messages
+  Future<List<CapturedMessage>> getNonDeletedMessages() async {
+    Database db = await instance.database;
+    final List<Map<String, dynamic>> maps = await db.query(
+      'messages',
+      where: 'isDeleted = 0',
+      orderBy: 'timestamp DESC',
+    );
+    debugPrint("DATABASE_HELPER: Fetched ${maps.length} non-deleted messages.");
+    return _mapToMessages(maps);
+  }
+
+  /// Soft delete
+  Future<int> markMessageAsDeleted(String notificationKey) async {
+    Database db = await instance.database;
+    final rowsUpdated = await db.update(
+      'messages',
+      {'isDeleted': 1},
+      where: 'notificationKey = ?',
+      whereArgs: [notificationKey],
+    );
+    debugPrint("DATABASE_HELPER: Marked $rowsUpdated message(s) as deleted.");
+    return rowsUpdated;
+  }
+
+  /// Hard delete single
+  Future<int> deleteMessage(int id) async {
+    Database db = await instance.database;
+    final rowsDeleted = await db.delete(
+      'messages',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    debugPrint("DATABASE_HELPER: Deleted $rowsDeleted message(s) with id=$id");
+    return rowsDeleted;
+  }
+
+  /// Hard delete multiple
+  Future<int> deleteMultipleMessages(List<int> ids) async {
+    if (ids.isEmpty) return 0;
+    Database db = await instance.database;
+    final rowsDeleted = await db.delete(
+      'messages',
+      where: 'id IN (${List.filled(ids.length, '?').join(',')})',
+      whereArgs: ids,
+    );
+    debugPrint("DATABASE_HELPER: Deleted $rowsDeleted messages with ids=$ids");
+    return rowsDeleted;
+  }
+
+  List<CapturedMessage> _mapToMessages(List<Map<String, dynamic>> maps) {
     return List.generate(maps.length, (i) {
       return CapturedMessage(
         id: maps[i]['id'],
         sender: maps[i]['sender'],
         message: maps[i]['message'],
         packageName: maps[i]['packageName'],
-        timestamp: DateTime.parse(maps[i]['timestamp']),
+        timestamp: DateTime.tryParse(maps[i]['timestamp']) ??
+            DateTime.fromMillisecondsSinceEpoch(
+                int.tryParse(maps[i]['timestamp']) ?? 0),
+        notificationKey: maps[i]['notificationKey'],
+        isDeleted: maps[i]['isDeleted'] == 1,
       );
     });
-  }
-
-  // ✅ NEW: Good practice to add a dispose method
-  void dispose() {
-    _streamController.close();
   }
 }

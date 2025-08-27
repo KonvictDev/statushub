@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'Game2048.dart';
-import 'TicTacToe.dart';
+import 'tic_tac_toe_screen.dart';
 
 class GamesScreen extends StatelessWidget {
   const GamesScreen({Key? key}) : super(key: key);

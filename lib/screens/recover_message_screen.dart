@@ -1,7 +1,6 @@
-import 'dart:async'; // Import async library
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-
 import '../utils/database_helper.dart';
 
 class RecoverMessageScreen extends StatefulWidget {
@@ -11,123 +10,136 @@ class RecoverMessageScreen extends StatefulWidget {
   State<RecoverMessageScreen> createState() => _RecoverMessageScreenState();
 }
 
-class _RecoverMessageScreenState extends State<RecoverMessageScreen> {
-  static const platform = MethodChannel('com.appsbyanandakumar.statushub/permissions');
+class _RecoverMessageScreenState extends State<RecoverMessageScreen>
+    with WidgetsBindingObserver {
+  static const platform =
+  MethodChannel('com.appsbyanandakumar.statushub/permissions');
+  static const eventChannel =
+  EventChannel('com.appsbyanandakumar.statushub/messages');
 
   List<CapturedMessage> _messages = [];
   bool _isLoading = true;
   bool _hasPermission = false;
   String _statusMessage = 'Loading messages...';
+  StreamSubscription? _eventSubscription;
 
-  // ✅ NEW: A variable to hold our stream subscription
-  StreamSubscription? _messageSubscription;
+  // Selection state
+  final Set<int> _selectedMessageIds = {};
+  bool _selectionMode = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _checkPermissionAndLoadMessages();
-
-    // ✅ NEW: Listen to the database stream
-    // When a new message is added, this will call _loadMessagesFromDb
-    _messageSubscription = DatabaseHelper.instance.onMessageAdded.listen((_) {
-      debugPrint("UI_SCREEN: Received update signal from database. Reloading messages.");
-      _loadMessagesFromDb();
-    });
+    _startListeningToNativeEvents();
   }
 
   @override
   void dispose() {
-    debugPrint("UI_SCREEN: dispose called.");
-    // ✅ NEW: Cancel the subscription to prevent memory leaks
-    _messageSubscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    _eventSubscription?.cancel();
     super.dispose();
   }
 
-  // The rest of your code in this file remains exactly the same.
-  // No changes are needed below this line.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkPermissionAndLoadMessages();
+    }
+  }
+
+  void _startListeningToNativeEvents() {
+    _eventSubscription?.cancel(); // avoid duplicate listeners
+    _eventSubscription =
+        eventChannel.receiveBroadcastStream().listen((event) {
+          debugPrint(
+              "UI_SCREEN: Received signal from native. Reloading messages.");
+          _loadMessagesFromDb();
+        }, onError: (error) {
+          debugPrint("UI_SCREEN: Error listening to native events: $error");
+        });
+  }
+
+  Future<void> _checkPermissionAndLoadMessages() async {
+    if (mounted) setState(() => _isLoading = true);
+    final hasPermission = await _checkNotificationListenerPermission();
+    _hasPermission = hasPermission;
+
+    if (!hasPermission) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _statusMessage =
+          'To recover messages, please enable Notification Access for this app in your phone\'s settings.';
+        });
+      }
+      return;
+    }
+    await _loadMessagesFromDb();
+  }
 
   Future<bool> _checkNotificationListenerPermission() async {
     try {
       return await platform.invokeMethod('checkPermission');
     } on PlatformException catch (e) {
-      print("Failed to check permission: '${e.message}'.");
+      debugPrint("Failed to check permission: '${e.message}'.");
       return false;
     }
   }
 
-  Future<void> _requestNotificationListenerPermission() async {
-    try {
-      await platform.invokeMethod('requestPermission');
-    } on PlatformException catch (e) {
-      print("Failed to request permission: '${e.message}'.");
-    }
-  }
-
-  Future<void> _checkPermissionAndLoadMessages() async {
-    if (mounted) setState(() => _isLoading = true);
-
-    bool hasPermission = await _checkNotificationListenerPermission();
-    _hasPermission = hasPermission;
-
-    if (!_hasPermission) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _statusMessage = 'To recover messages, please enable Notification Access for this app in your phone\'s settings.';
-        });
-      }
-      return;
-    }
-
-    await _loadMessagesFromDb();
-  }
-
   Future<void> _loadMessagesFromDb() async {
-    debugPrint("UI_SCREEN: _loadMessagesFromDb called.");
-    final data = await DatabaseHelper.instance.getMessages();
+    final data = await DatabaseHelper.instance.getNonDeletedMessages();
     if (!mounted) return;
-    debugPrint("UI_SCREEN: Setting state with ${data.length} messages.");
     setState(() {
       _messages = data;
       _isLoading = false;
       if (_messages.isEmpty) {
-        _statusMessage = 'No messages have been captured yet. New WhatsApp messages will appear here after they arrive.';
+        _statusMessage =
+        'No messages have been captured yet.\nNew WhatsApp messages will appear here after they arrive.';
       }
     });
   }
 
-  void _showPermissionDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Permission Required'),
-        content: const Text('To capture messages, this app needs access to your notifications. Please enable it in the settings.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(context);
-              await _requestNotificationListenerPermission();
-              await Future.delayed(const Duration(seconds: 1));
-              _checkPermissionAndLoadMessages();
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
+  void _toggleSelection(int id) {
+    setState(() {
+      if (_selectedMessageIds.contains(id)) {
+        _selectedMessageIds.remove(id);
+        if (_selectedMessageIds.isEmpty) _selectionMode = false;
+      } else {
+        _selectedMessageIds.add(id);
+        _selectionMode = true;
+      }
+    });
+  }
+
+  Future<void> _deleteSelectedMessages() async {
+    if (_selectedMessageIds.isEmpty) return;
+    await DatabaseHelper.instance
+        .deleteMultipleMessages(_selectedMessageIds.toList());
+    setState(() {
+      _messages.removeWhere((msg) => _selectedMessageIds.contains(msg.id));
+      _selectedMessageIds.clear();
+      _selectionMode = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Recovered Messages'),
-        backgroundColor: Colors.teal.shade700,
-        elevation: 2,
+        title: _selectionMode
+            ? Text('${_selectedMessageIds.length} selected')
+            : const Text('Recovered Messages'),
+        actions: _selectionMode
+            ? [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: _deleteSelectedMessages,
+          )
+        ]
+            : [],
+        scrolledUnderElevation: 2,
       ),
       body: _buildBody(),
     );
@@ -145,14 +157,16 @@ class _RecoverMessageScreenState extends State<RecoverMessageScreen> {
         onRefresh: _loadMessagesFromDb,
         child: Stack(
           children: [
-            ListView(), // This makes RefreshIndicator work on an empty screen
+            ListView(),
             Center(
               child: Padding(
                 padding: const EdgeInsets.all(24.0),
                 child: Text(
                   _statusMessage,
                   textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
               ),
             ),
@@ -163,56 +177,110 @@ class _RecoverMessageScreenState extends State<RecoverMessageScreen> {
     return RefreshIndicator(
       onRefresh: _loadMessagesFromDb,
       child: ListView.builder(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         itemCount: _messages.length,
         itemBuilder: (context, index) {
-          final msg = _messages[index];
-          final isBusiness = msg.packageName == 'com.whatsapp.w4b';
-          return Card(
-            elevation: 2,
-            margin: const EdgeInsets.symmetric(vertical: 5.0, horizontal: 4.0),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            child: ListTile(
-              leading: CircleAvatar(
-                backgroundColor: isBusiness ? Colors.green.shade800 : Colors.teal.shade400,
-                child: Icon(isBusiness ? Icons.business_center : Icons.person, color: Colors.white),
-              ),
-              title: Text(msg.sender, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text(msg.message, maxLines: 2, overflow: TextOverflow.ellipsis),
-              trailing: Text(
-                '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}',
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-              ),
-            ),
-          );
+          return _buildMessageCard(_messages[index]);
         },
       ),
     );
   }
 
+  Widget _buildMessageCard(CapturedMessage msg) {
+    final isSelected = _selectedMessageIds.contains(msg.id);
+    final isBusiness = msg.packageName == 'com.whatsapp.w4b';
+    final colorScheme = Theme.of(context).colorScheme;
+
+    final timestampStr =
+        "${msg.timestamp.day.toString().padLeft(2, '0')}/"
+        "${msg.timestamp.month.toString().padLeft(2, '0')} "
+        "${msg.timestamp.hour.toString().padLeft(2, '0')}:"
+        "${msg.timestamp.minute.toString().padLeft(2, '0')}";
+
+    return Card(
+      elevation: 1,
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      color: isSelected ? colorScheme.primaryContainer.withOpacity(0.5) : null,
+      child: ListTile(
+        onLongPress: () => _toggleSelection(msg.id!),
+        onTap: () {
+          if (_selectionMode) {
+            _toggleSelection(msg.id!);
+          }
+        },
+        contentPadding:
+        const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        leading: _selectionMode
+            ? Checkbox(
+          value: isSelected,
+          onChanged: (_) => _toggleSelection(msg.id!),
+        )
+            : CircleAvatar(
+          backgroundColor: isBusiness
+              ? colorScheme.tertiaryContainer
+              : colorScheme.primaryContainer,
+          child: Icon(
+            isBusiness ? Icons.business_center : Icons.person,
+            color: isBusiness
+                ? colorScheme.onTertiaryContainer
+                : colorScheme.onPrimaryContainer,
+          ),
+        ),
+        title: Text(
+          msg.sender,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        subtitle: Text(
+          msg.message,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        trailing: Text(
+          timestampStr,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPermissionRequestUI() {
+    final colorScheme = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.notifications_off_outlined, size: 80, color: Colors.grey.shade500),
+            Icon(Icons.notifications_off_rounded,
+                size: 80, color: colorScheme.primary),
             const SizedBox(height: 20),
             Text(
               _statusMessage,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 16, color: Colors.grey.shade700, height: 1.5),
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                backgroundColor: colorScheme.primary,
+                foregroundColor: colorScheme.onPrimary,
+                padding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
-              onPressed: _showPermissionDialog,
+              onPressed: () async {
+                try {
+                  await platform.invokeMethod('requestPermission');
+                } catch (e) {
+                  debugPrint("Error opening settings: $e");
+                }
+              },
               icon: const Icon(Icons.settings),
               label: const Text('Open Settings'),
             )

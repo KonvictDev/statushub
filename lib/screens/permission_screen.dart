@@ -16,12 +16,13 @@ class PermissionScreen extends StatefulWidget {
 class _PermissionScreenState extends State<PermissionScreen>
     with WidgetsBindingObserver {
   bool _hasShownRationale = false;
+  bool _isPermanentlyDenied = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkIfPreviouslyDenied();
+    _checkPermissionStatus();
   }
 
   @override
@@ -33,56 +34,30 @@ class _PermissionScreenState extends State<PermissionScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _recheckPermission();
+      _checkPermissionStatus();
     }
   }
 
-  Future<void> _checkIfPreviouslyDenied() async {
-    final prefs = await SharedPreferences.getInstance();
-    _hasShownRationale =
-        prefs.getBool('has_shown_permission_rationale') ?? false;
-  }
+  Future<void> _checkPermissionStatus() async {
+    final status = await Permission.manageExternalStorage.status;
+    if (!mounted) return;
+    setState(() {
+      _isPermanentlyDenied = status.isPermanentlyDenied;
+    });
 
-  Future<void> _storeDenialFlag() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('has_shown_permission_rationale', true);
-  }
-
-  Future<void> _recheckPermission() async {
-    final granted = await _isPermissionGranted();
-    if (granted) {
+    if (status.isGranted) {
       widget.onPermissionGranted();
     }
   }
 
-  Future<bool> _isPermissionGranted() async {
-    if (!Platform.isAndroid) return false;
-    return await Permission.manageExternalStorage.isGranted;
-  }
-
-  Future<bool> _isPermanentlyDenied() async {
-    return Platform.isAndroid &&
-        await Permission.manageExternalStorage.isPermanentlyDenied;
-  }
-
-  Future<bool> _requestPermissions() async {
-    if (!Platform.isAndroid) return false;
+  Future<void> _requestPermissions() async {
     final status = await Permission.manageExternalStorage.request();
-    return status.isGranted;
-  }
-
-  Future<void> _requestPermissionFlow() async {
-    final granted = await _requestPermissions();
-    if (granted) {
+    if (status.isGranted) {
       widget.onPermissionGranted();
+    } else if (status.isPermanentlyDenied) {
+      _showSettingsDialog();
     } else {
-      final permanentlyDenied = await _isPermanentlyDenied();
-      if (permanentlyDenied) {
-        _showSettingsDialog();
-      } else {
-        _showRationaleSheet(); // Always show rationale on soft denial
-        await _storeDenialFlag(); // Optionally track once
-      }
+      _showRationaleSheet();
     }
   }
 
@@ -106,11 +81,11 @@ class _PermissionScreenState extends State<PermissionScreen>
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
                     shape: BoxShape.circle,
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: Colors.black12,
                         blurRadius: 10,
-                        offset: const Offset(0, 5),
+                        offset: Offset(0, 5),
                       ),
                     ],
                   ),
@@ -123,9 +98,7 @@ class _PermissionScreenState extends State<PermissionScreen>
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 28),
-
                 Text(
                   'Storage Permission Required',
                   style: theme.textTheme.titleMedium?.copyWith(
@@ -133,30 +106,23 @@ class _PermissionScreenState extends State<PermissionScreen>
                   ),
                   textAlign: TextAlign.center,
                 ),
-
                 const SizedBox(height: 16),
-
-                Text(
-                  'To access WhatsApp statuses:\n'
-                  '• Allow "All files access" for the app\n'
-                  '• This is required to read media stored by WhatsApp',
-                  style: theme.textTheme.bodyMedium?.copyWith(fontSize: 15),
-                  textAlign: TextAlign.left,
+                const Text(
+                  'To access WhatsApp statuses, the app needs special permission to read files stored on your device.\n\n'
+                      'Without this, the app cannot find and display statuses.',
+                  style: TextStyle(fontSize: 15),
+                  textAlign: TextAlign.center,
                 ),
-
                 const SizedBox(height: 32),
-
                 FilledButton.icon(
                   icon: const Icon(Icons.lock_open_rounded),
                   label: const Text('Grant Permission'),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size.fromHeight(48),
                   ),
-                  onPressed: _requestPermissionFlow,
+                  onPressed: _requestPermissions,
                 ),
-
                 const SizedBox(height: 16),
-
                 TextButton.icon(
                   icon: const Icon(Icons.help_outline),
                   label: const Text('How to Grant Permission'),
@@ -177,7 +143,7 @@ class _PermissionScreenState extends State<PermissionScreen>
         title: const Text('Permission Required'),
         content: const Text(
           'Permission has been permanently denied.\n\n'
-          'Please open app settings and allow access manually.',
+              'Please open app settings and allow access manually.',
         ),
         actions: [
           TextButton(
@@ -203,8 +169,8 @@ class _PermissionScreenState extends State<PermissionScreen>
         title: const Text('How to Grant Permission'),
         content: const Text(
           '1. Tap "Grant Permission"\n'
-          '2. Select "Allow access to all files" when prompted\n'
-          '3. If denied, go to Settings → Apps → Your App → Permissions → Allow all files access',
+              '2. Select "Allow access to all files" when prompted\n'
+              '3. If denied, go to Settings → Apps → Your App → Permissions → Allow all files access',
         ),
         actions: [
           TextButton(
@@ -230,17 +196,16 @@ class _PermissionScreenState extends State<PermissionScreen>
           children: [
             Row(
               crossAxisAlignment: CrossAxisAlignment.center,
-              // Vertically center the icon
               children: [
                 Container(
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: Theme.of(ctx).colorScheme.primaryContainer,
-                    boxShadow: [
+                    boxShadow: const [
                       BoxShadow(
                         color: Colors.black12,
                         blurRadius: 10,
-                        offset: const Offset(0, 5),
+                        offset: Offset(0, 5),
                       ),
                     ],
                   ),
@@ -275,22 +240,18 @@ class _PermissionScreenState extends State<PermissionScreen>
                 ),
               ],
             ),
-
             const SizedBox(height: 24),
-
             SizedBox(
               width: double.infinity,
               child: FilledButton(
                 style: FilledButton.styleFrom(
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(
-                      10,
-                    ), // 👈 Customize radius here
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
                 onPressed: () {
                   Navigator.pop(ctx);
-                  _requestPermissionFlow();
+                  _requestPermissions();
                 },
                 child: const Text('Try Again'),
               ),

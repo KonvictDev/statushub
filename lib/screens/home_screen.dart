@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:statushub/screens/permission_screen.dart';
 import 'package:statushub/constants/app_colors.dart';
+import 'package:statushub/providers/status_provider.dart';
 import '../l10n/app_localizations.dart';
 import '../router/route_names.dart';
 import '../service/status_service.dart';
@@ -10,19 +12,16 @@ import '../service/whatsapp_service.dart';
 import '../widgets/features_tab.dart';
 import '../widgets/status_tab.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget { // 👈 Change to ConsumerStatefulWidget
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState(); // 👈 Change to ConsumerState
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _hasPermission = false;
   bool _isLoading = true;
-
-  List<FileSystemEntity> allStatuses = [];
-  List<FileSystemEntity> savedStatuses = [];
 
   @override
   void initState() {
@@ -41,31 +40,14 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     if (hasPermission) {
-      await _loadAllStatuses();
-    }
-  }
-
-  Future<void> _loadAllStatuses() async {
-    try {
-      final current = await StatusService.getStatuses();
-      final saved = await StatusService.getSavedStatuses();
-      if (!mounted) return;
-      setState(() {
-        allStatuses = current;
-        savedStatuses = saved;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${AppLocalizations.of(context)!.failedToLoadStatuses} $e'),
-        ),
-      );
+      // 👈 Call the new provider method to load data
+      ref.read(statusProvider.notifier).loadStatuses();
     }
   }
 
   Future<void> _refreshStatuses() async {
-    await _loadAllStatuses();
+    // 👈 Refresh by calling the provider method
+    await ref.read(statusProvider.notifier).loadStatuses();
   }
 
   @override
@@ -83,7 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
         onPermissionGranted: () async {
           if (!mounted) return;
           setState(() => _hasPermission = true);
-          await _loadAllStatuses();
+          // 👈 Call the new provider method after permission is granted
+          await ref.read(statusProvider.notifier).loadStatuses();
         },
       );
     }
@@ -118,9 +101,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             children: [
                               IconButton(
                                 icon: Image.asset(
-                                  'assets/icons/membership.png', // path to your icon in the icons folder
-                                  // optional, only works for PNGs with transparency
-                                  width: 24,                                 // adjust size
+                                  'assets/icons/membership.png',
+                                  width: 24,
                                   height: 24,
                                 ),
                                 tooltip: local.subscription,
@@ -128,17 +110,14 @@ class _HomeScreenState extends State<HomeScreen> {
                               ),
                               IconButton(
                                 icon: Image.asset(
-                                  'assets/icons/whatsapp.png', // path to your icon in the icons folder
-                                  color: AppColors.white,       // optional, only works for certain formats like PNG with transparency
-                                  width: 24,                     // adjust size
+                                  'assets/icons/whatsapp.png',
+                                  color: AppColors.white,
+                                  width: 24,
                                   height: 24,
                                 ),
                                 tooltip: local.hotStatus,
                                 onPressed: () => WhatsAppService.openWhatsApp(context),
                               ),
-
-
-
                               IconButton(
                                 icon: const Icon(Icons.settings, color: AppColors.white),
                                 tooltip: local.settings,
@@ -214,14 +193,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 physics: const BouncingScrollPhysics(),
                 children: [
                   StatusTab(
-                    files: allStatuses,
                     isSaved: false,
-                    onRefresh: _refreshStatuses,
                   ),
                   StatusTab(
-                    files: savedStatuses,
                     isSaved: true,
-                    onRefresh: _refreshStatuses,
                   ),
                   const FeaturesTab(),
                 ],

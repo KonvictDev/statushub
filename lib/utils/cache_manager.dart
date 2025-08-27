@@ -65,6 +65,21 @@ class CacheManager {
     }
   }
 
+  Future<String?> getCachedPath(String key) async {
+    final cacheDir = await this.cacheDir;
+    final path = '${cacheDir.path}/${key.hashCode}.dat'; // Using a generic extension
+    final file = File(path);
+    return file.existsSync() ? path : null;
+  }
+
+  /// Saves a value to the cache and returns the path.
+  Future<String> saveToCache(String key, List<int> bytes) async {
+    final cacheDir = await this.cacheDir;
+    final path = '${cacheDir.path}/${key.hashCode}.dat';
+    await File(path).writeAsBytes(bytes);
+    return path;
+  }
+
   /// 🔥 Manually clear cache (for a "Clear Cache" button)
   Future<void> clearCache() async {
     final dir = await cacheDir;

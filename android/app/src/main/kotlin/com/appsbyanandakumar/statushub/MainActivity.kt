@@ -3,8 +3,6 @@ package com.appsbyanandakumar.statushub
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.media.MediaScannerConnection
 import android.provider.Settings
 import android.text.TextUtils
@@ -12,7 +10,7 @@ import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
-import java.io.ByteArrayOutputStream
+import android.util.Log
 
 class MainActivity : FlutterActivity() {
 
@@ -27,10 +25,13 @@ class MainActivity : FlutterActivity() {
     // ✅ NEW: The channel for handling permissions
     private val PERMISSION_METHOD_CHANNEL = "com.appsbyanandakumar.statushub/permissions"
 
+    // ✅ NEW: A reference to our listener instance
+    // You don't need this, you should just set the static property.
+    // private val notificationListener = NotificationListener()
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // --- Your Existing MethodChannels (No changes needed) ---
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, MEDIA_SCANNER_CHANNEL)
             .setMethodCallHandler { call, result ->
                 if (call.method == "scanMedia") {
@@ -44,24 +45,6 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WEBP_CHANNEL)
-            .setMethodCallHandler { call, result ->
-                if (call.method == "convertToWebP") {
-                    val path = call.argument<String>("path")
-                    if (path != null) {
-                        val webpBytes = convertToWebP(path)
-                        if (webpBytes != null) {
-                            result.success(webpBytes)
-                        } else {
-                            result.error("ERROR", "Failed to convert image to WebP", null)
-                        }
-                    } else {
-                        result.error("INVALID_ARGUMENT", "Image path is null", null)
-                    }
-                } else {
-                    result.notImplemented()
-                }
-            }
 
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WHATSAPP_CHANNEL)
             .setMethodCallHandler { call, result ->
@@ -73,43 +56,39 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        // --- Notification EventChannel (Your implementation is correct) ---
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, NOTIFICATION_EVENT_CHANNEL)
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    // Use the static variable from your NotificationListener class
+                    // Correct: Assign the sink to the companion object property
                     NotificationListener.eventSink = events
+                    Log.d("MainActivity", "EventChannel onListen: eventSink is set.")
+
+                    // ✅ NEW: Trigger the queue processing
+                    // You need to call this on the class itself
+                    NotificationListener.processQueue()
                 }
 
                 override fun onCancel(arguments: Any?) {
                     NotificationListener.eventSink = null
+                    Log.d("MainActivity", "EventChannel onCancel: eventSink is null.")
                 }
             })
 
-        // ✅ NEW: Add this MethodChannel for checking and requesting permission ---
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PERMISSION_METHOD_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "checkPermission" -> {
                     result.success(isNotificationServiceEnabled())
                 }
                 "requestPermission" -> {
-                    // This intent opens the specific system setting screen
                     val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
                     startActivity(intent)
-                    result.success(null) // We don't need to return anything
+                    result.success(null)
                 }
                 else -> result.notImplemented()
             }
         }
     }
 
-    // --- Your existing functions (no changes needed) ---
-    private fun convertToWebP(path: String): ByteArray? {
-        val bitmap = BitmapFactory.decodeFile(path) ?: return null
-        val outputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.WEBP_LOSSY, 100, outputStream)
-        return outputStream.toByteArray()
-    }
 
     private fun openWhatsAppHome(): Boolean {
         val packages = listOf("com.whatsapp", "com.whatsapp.w4b")
@@ -129,7 +108,6 @@ class MainActivity : FlutterActivity() {
         return false
     }
 
-    // ✅ NEW: Add this function to check if the listener is enabled ---
     private fun isNotificationServiceEnabled(): Boolean {
         val pkgName = packageName
         val flat = Settings.Secure.getString(contentResolver, "enabled_notification_listeners")

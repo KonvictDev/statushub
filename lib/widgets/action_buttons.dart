@@ -1,47 +1,34 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:statushub/constants/app_colors.dart';
+import 'package:statushub/utils/media_actions.dart';
 import '../l10n/app_localizations.dart';
 
 class ActionButtons extends StatelessWidget {
-  final VoidCallback? onShare;
-  final VoidCallback? onRepost;
-  final Future<void> Function()? onSave;
   final BuildContext sheetContext;
+  final File file;
+  final bool isSaved;
+  final bool isVideo;
 
   const ActionButtons({
     super.key,
-    this.onShare,
-    this.onRepost,
-    this.onSave,
     required this.sheetContext,
+    required this.file,
+    required this.isSaved,
+    required this.isVideo,
   });
-
-  Future<void> _handleSave() async {
-    if (onSave != null) {
-      await onSave!();
-      if (Navigator.of(sheetContext).canPop()) {
-        Navigator.of(sheetContext).pop();
-      }
-    }
-  }
-
-  void _handleShare() => onShare?.call();
-  void _handleRepost() => onRepost?.call();
 
   @override
   Widget build(BuildContext context) {
     final local = AppLocalizations.of(context)!;
+    final actions = MediaActions(context, file, isVideo: isVideo);
 
-// Use fixed colors for all themes with opacity
-    final primaryBg = AppColors.primary.withOpacity(0.6);    // 80% opacity
-    final primaryFg = AppColors.white;                        // text stays fully opaque
-
+    final primaryBg = AppColors.primary.withOpacity(0.6);
+    final primaryFg = AppColors.white;
     final secondaryBg = AppColors.primaryDark.withOpacity(0.6);
     final secondaryFg = AppColors.white;
-
     final tertiaryBg = AppColors.primaryLight.withOpacity(0.6);
     final tertiaryFg = AppColors.white;
-
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
@@ -53,7 +40,7 @@ class ActionButtons extends StatelessWidget {
             children: [
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _handleShare,
+                  onPressed: actions.share,
                   icon: const Icon(Icons.share_rounded),
                   label: Text(local.share),
                   style: FilledButton.styleFrom(
@@ -69,7 +56,7 @@ class ActionButtons extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: _handleRepost,
+                  onPressed: actions.repost,
                   icon: const Icon(Icons.repeat_rounded),
                   label: Text(local.repost),
                   style: FilledButton.styleFrom(
@@ -85,9 +72,14 @@ class ActionButtons extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          if (onSave != null)
+          if (!isSaved)
             FilledButton.icon(
-              onPressed: _handleSave,
+              onPressed: () async {
+                await actions.save();
+                if (Navigator.of(sheetContext).canPop()) {
+                  Navigator.of(sheetContext).pop();
+                }
+              },
               icon: const Icon(Icons.download_rounded),
               label: Text(local.saveToGallery),
               style: FilledButton.styleFrom(
