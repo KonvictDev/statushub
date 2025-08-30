@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,14 +8,15 @@ import '../l10n/app_localizations.dart';
 import '../router/route_names.dart';
 import '../service/status_service.dart';
 import '../service/whatsapp_service.dart';
+import '../widgets/disclaimer_box.dart';
 import '../widgets/features_tab.dart';
 import '../widgets/status_tab.dart';
 
-class HomeScreen extends ConsumerStatefulWidget { // 👈 Change to ConsumerStatefulWidget
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState(); // 👈 Change to ConsumerState
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
@@ -40,13 +40,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
 
     if (hasPermission) {
-      // 👈 Call the new provider method to load data
       ref.read(statusProvider.notifier).loadStatuses();
     }
   }
 
   Future<void> _refreshStatuses() async {
-    // 👈 Refresh by calling the provider method
     await ref.read(statusProvider.notifier).loadStatuses();
   }
 
@@ -65,7 +63,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         onPermissionGranted: () async {
           if (!mounted) return;
           setState(() => _hasPermission = true);
-          // 👈 Call the new provider method after permission is granted
           await ref.read(statusProvider.notifier).loadStatuses();
         },
       );
@@ -97,16 +94,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
 
                           // Action Icons
+                          // Action Icons
                           Row(
                             children: [
                               IconButton(
-                                icon: Image.asset(
-                                  'assets/icons/membership.png',
-                                  width: 24,
-                                  height: 24,
-                                ),
-                                tooltip: local.subscription,
-                                onPressed: () {},
+                                icon: const Icon(Icons.refresh, color: AppColors.white),
+                                tooltip: "refresh", // Make sure you add "refresh" in your localization
+                                onPressed: () async {
+                                  await _refreshStatuses();
+                                },
                               ),
                               IconButton(
                                 icon: Image.asset(
@@ -118,6 +114,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 tooltip: local.hotStatus,
                                 onPressed: () => WhatsAppService.openWhatsApp(context),
                               ),
+                              // 🔄 Refresh Button
+
                               IconButton(
                                 icon: const Icon(Icons.settings, color: AppColors.white),
                                 tooltip: local.settings,
@@ -127,6 +125,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               ),
                             ],
                           ),
+
                         ],
                       ),
                     ),
@@ -192,11 +191,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               child: TabBarView(
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  StatusTab(
-                    isSaved: false,
+                  Column(
+                    children: [
+                      const DisclaimerBox(), // 👈 MOVED WIDGET HERE
+                      Expanded(
+                        child: StatusTab(
+                          isSaved: false,
+                        ),
+                      ),
+                    ],
                   ),
-                  StatusTab(
-                    isSaved: true,
+                  Column(
+                    children: [
+                     // 👈 MOVED WIDGET HERE
+                      Expanded(
+                        child: StatusTab(
+                          isSaved: true,
+                        ),
+                      ),
+                    ],
                   ),
                   const FeaturesTab(),
                 ],

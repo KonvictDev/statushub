@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/app_strings.dart';
 import '../l10n/app_localizations.dart';
@@ -71,8 +72,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _shareApp() => Share.share(AppStrings.shareMessage);
-  void _sendFeedback() => Share.share(AppStrings.feedbackMessage);
-  void _openPrivacyPolicy() => Share.share(AppStrings.privacyUrl);
+
+  // ✅ UPDATED: Function to send feedback via email intent
+  Future<void> _sendFeedback() async {
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: 'appsbyanandakumar@gmail.com',
+      query: 'subject=Feedback for StatusHub&body=Hi, I have some feedback regarding your app...',
+    );
+
+    if (await canLaunchUrl(emailLaunchUri)) {
+      await launchUrl(emailLaunchUri, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open email client. Please email us at appsbyanandakumar@gmail.com')),
+        );
+      }
+    }
+  }
+
+  Future<void> _openPrivacyPolicy() async {
+    final url = Uri.parse('https://konvictdev.github.io/status_hu_privacy/');
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the privacy policy link.')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -171,21 +202,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             Padding(
               padding: const EdgeInsets.only(left: 5, bottom: 12, right: 5),
               child: SegmentedButton<ThemeMode>(
-                segments: [
+                segments: const [
                   ButtonSegment(
                     value: ThemeMode.light,
-                    icon: const Icon(Icons.light_mode_rounded),
-                    label: Text(loc.light),
+                    icon: Icon(Icons.light_mode_rounded),
+                    label: Text('Light'),
                   ),
                   ButtonSegment(
                     value: ThemeMode.dark,
-                    icon: const Icon(Icons.dark_mode_rounded),
-                    label: Text(loc.dark),
+                    icon: Icon(Icons.dark_mode_rounded),
+                    label: Text('Dark'),
                   ),
                   ButtonSegment(
                     value: ThemeMode.system,
-                    icon: const Icon(Icons.phone_android_rounded),
-                    label: Text(loc.system),
+                    icon: Icon(Icons.phone_android_rounded),
+                    label: Text('System'),
                   ),
                 ],
                 selected: {currentTheme},
@@ -198,27 +229,44 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       );
 
-  Widget _buildLanguageCard(AppLocalizations loc, Locale currentLocale) =>
-      _buildCard(
-        child: ListTile(
-          leading: const Icon(Icons.language_rounded),
-          title: Text(loc.appLanguage),
-          subtitle:
-          Text(currentLocale.languageCode == "ta" ? "தமிழ்" : "English"),
-          trailing: DropdownButton<String>(
-            value: currentLocale.languageCode,
-            onChanged: (value) {
-              if (value != null) {
-                ref.read(localeProvider.notifier).setLocale(value);
-              }
-            },
-            items: const [
-              DropdownMenuItem(value: 'en', child: Text('English')),
-              DropdownMenuItem(value: 'ta', child: Text('தமிழ்')),
-            ],
-          ),
+  Widget _buildLanguageCard(AppLocalizations loc, Locale currentLocale) {
+    String _getLanguageName(String code) {
+      switch (code) {
+        case 'ta': return "தமிழ்";
+        case 'ml': return "മലയാളം";
+        case 'te': return "తెలుగు";
+        case 'kn': return "కన్నడ";
+        case 'hi': return "हिन्दी";
+        default: return "English";
+      }
+    }
+
+    return _buildCard(
+      child: ListTile(
+        leading: const Icon(Icons.language_rounded),
+        title: Text(loc.appLanguage),
+        subtitle: Text(_getLanguageName(currentLocale.languageCode)),
+        trailing: DropdownButton<String>(
+          value: currentLocale.languageCode,
+          onChanged: (value) {
+            if (value != null) {
+              print("locale"+value);
+              ref.read(localeProvider.notifier).setLocale(value);
+            }
+          },
+          items: [
+            DropdownMenuItem(value: 'en', child: Text('English')),
+            DropdownMenuItem(value: 'ta', child: Text('தமிழ்')),
+            DropdownMenuItem(value: 'ml', child: Text('മലയാളം')),
+            DropdownMenuItem(value: 'te', child: Text('తెలుగు')),
+            DropdownMenuItem(value: 'kn', child: Text('కన్నడ')),
+            DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
+          ],
         ),
-      );
+      ),
+    );
+  }
+
 
   // Refactored cards using _buildSimpleCard
   Widget _buildRateCard(AppLocalizations loc) =>

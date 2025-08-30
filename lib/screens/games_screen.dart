@@ -20,11 +20,6 @@ class GamesScreen extends StatelessWidget {
         'icon': 'assets/images/game2.jpeg',
         'widget': TicTacToeScreen(),
       },
-      {
-        'title': 'Snake',
-        'icon': 'assets/images/game1.png',
-        'widget': null,
-      },
     ];
 
     return Scaffold(

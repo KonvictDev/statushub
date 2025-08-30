@@ -49,7 +49,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appShareDetails =>
-      '📱 Shared via MyAwesomeApp\n✨ Download now: https://example.com/app';
+      '📱 Shared via MyAwesomeApp\n✨ Download now: https://play.google.com/store/apps/details?id=com.appsbyanandakumar.statushub';
 
   @override
   String get share => 'Share';
@@ -163,16 +163,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get english => 'English';
 
   @override
-  String get spanish => 'Español';
-
-  @override
-  String get french => 'Français';
-
-  @override
-  String get german => 'Deutsch';
-
-  @override
   String get tamil => 'தமிழ்';
+
+  @override
+  String get malayalam => 'മലയാളം';
+
+  @override
+  String get telugu => 'തെലുങ്ക്';
+
+  @override
+  String get kannada => 'കന്നഡ';
+
+  @override
+  String get hindi => 'हिन्दी';
 
   @override
   String get rateUs => 'Rate Us';
@@ -188,7 +191,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get shareMessage =>
-      'Check out this awesome app: https://play.google.com/store/apps/details?id=com.example.app';
+      'Check out this awesome app: https://play.google.com/store/apps/details?id=com.appsbyanandakumar.statushub';
 
   @override
   String get sendFeedback => 'Send Feedback';

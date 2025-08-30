@@ -6,7 +6,11 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
 import 'app_localizations_en.dart';
+import 'app_localizations_hi.dart';
+import 'app_localizations_kn.dart';
+import 'app_localizations_ml.dart';
 import 'app_localizations_ta.dart';
+import 'app_localizations_te.dart';
 
 // ignore_for_file: type=lint
 
@@ -95,7 +99,11 @@ abstract class AppLocalizations {
   /// A list of this localizations delegate's supported locales.
   static const List<Locale> supportedLocales = <Locale>[
     Locale('en'),
+    Locale('hi'),
+    Locale('kn'),
+    Locale('ml'),
     Locale('ta'),
+    Locale('te'),
   ];
 
   /// No description provided for @noImageSelected.
@@ -179,7 +187,7 @@ abstract class AppLocalizations {
   /// No description provided for @appShareDetails.
   ///
   /// In en, this message translates to:
-  /// **'📱 Shared via MyAwesomeApp\n✨ Download now: https://example.com/app'**
+  /// **'📱 Shared via MyAwesomeApp\n✨ Download now: https://play.google.com/store/apps/details?id=com.appsbyanandakumar.statushub'**
   String get appShareDetails;
 
   /// No description provided for @share.
@@ -404,29 +412,35 @@ abstract class AppLocalizations {
   /// **'English'**
   String get english;
 
-  /// No description provided for @spanish.
-  ///
-  /// In en, this message translates to:
-  /// **'Español'**
-  String get spanish;
-
-  /// No description provided for @french.
-  ///
-  /// In en, this message translates to:
-  /// **'Français'**
-  String get french;
-
-  /// No description provided for @german.
-  ///
-  /// In en, this message translates to:
-  /// **'Deutsch'**
-  String get german;
-
   /// No description provided for @tamil.
   ///
   /// In en, this message translates to:
   /// **'தமிழ்'**
   String get tamil;
+
+  /// No description provided for @malayalam.
+  ///
+  /// In en, this message translates to:
+  /// **'മലയാളം'**
+  String get malayalam;
+
+  /// No description provided for @telugu.
+  ///
+  /// In en, this message translates to:
+  /// **'തെലുങ്ക്'**
+  String get telugu;
+
+  /// No description provided for @kannada.
+  ///
+  /// In en, this message translates to:
+  /// **'കന്നഡ'**
+  String get kannada;
+
+  /// No description provided for @hindi.
+  ///
+  /// In en, this message translates to:
+  /// **'हिन्दी'**
+  String get hindi;
 
   /// No description provided for @rateUs.
   ///
@@ -455,7 +469,7 @@ abstract class AppLocalizations {
   /// No description provided for @shareMessage.
   ///
   /// In en, this message translates to:
-  /// **'Check out this awesome app: https://play.google.com/store/apps/details?id=com.example.app'**
+  /// **'Check out this awesome app: https://play.google.com/store/apps/details?id=com.appsbyanandakumar.statushub'**
   String get shareMessage;
 
   /// No description provided for @sendFeedback.
@@ -733,8 +747,14 @@ class _AppLocalizationsDelegate
   }
 
   @override
-  bool isSupported(Locale locale) =>
-      <String>['en', 'ta'].contains(locale.languageCode);
+  bool isSupported(Locale locale) => <String>[
+    'en',
+    'hi',
+    'kn',
+    'ml',
+    'ta',
+    'te',
+  ].contains(locale.languageCode);
 
   @override
   bool shouldReload(_AppLocalizationsDelegate old) => false;
@@ -745,8 +765,16 @@ AppLocalizations lookupAppLocalizations(Locale locale) {
   switch (locale.languageCode) {
     case 'en':
       return AppLocalizationsEn();
+    case 'hi':
+      return AppLocalizationsHi();
+    case 'kn':
+      return AppLocalizationsKn();
+    case 'ml':
+      return AppLocalizationsMl();
     case 'ta':
       return AppLocalizationsTa();
+    case 'te':
+      return AppLocalizationsTe();
   }
 
   throw FlutterError(

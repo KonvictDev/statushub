@@ -49,7 +49,7 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get appShareDetails =>
-      '📱 என் அருமையான பயன்பாட்டில் பகிரப்பட்டது\n✨ இப்போது பதிவிறக்கம் செய்யவும்: https://example.com/app';
+      '📱 என் அருமையான பயன்பாட்டில் பகிரப்பட்டது\n✨ இப்போது பதிவிறக்கம் செய்யவும்:https://play.google.com/store/apps/details?id=com.appsbyanandakumar.statushub';
 
   @override
   String get share => 'பகிர்';
@@ -61,7 +61,7 @@ class AppLocalizationsTa extends AppLocalizations {
   String get saveToGallery => 'கேலரியில் சேமிப்பு';
 
   @override
-  String get statusHub => 'நிலை ஹப்';
+  String get statusHub => 'Status Hub';
 
   @override
   String get hotStatus => 'சூடான நிலை';
@@ -158,22 +158,25 @@ class AppLocalizationsTa extends AppLocalizations {
   String get system => 'கணினி';
 
   @override
-  String get appLanguage => 'பயன்பாட்டு மொழி';
+  String get appLanguage => 'App Language';
 
   @override
-  String get english => 'ஆங்கிலம்';
-
-  @override
-  String get spanish => 'எஸ்பானியல்';
-
-  @override
-  String get french => 'பிரெஞ்சு';
-
-  @override
-  String get german => 'ஜெர்மன்';
+  String get english => 'English';
 
   @override
   String get tamil => 'தமிழ்';
+
+  @override
+  String get malayalam => 'മലയാളം';
+
+  @override
+  String get telugu => 'തെലുങ്ക്';
+
+  @override
+  String get kannada => 'കന്നഡ';
+
+  @override
+  String get hindi => 'हिन्दी';
 
   @override
   String get rateUs => 'எங்களை மதிப்பிடுங்கள்';
@@ -189,7 +192,7 @@ class AppLocalizationsTa extends AppLocalizations {
 
   @override
   String get shareMessage =>
-      'இந்த அருமையான பயன்பாட்டைப் பாருங்கள்: https://play.google.com/store/apps/details?id=com.example.app';
+      'இந்த அருமையான பயன்பாட்டைப் பாருங்கள்: https://play.google.com/store/apps/details?id=com.appsbyanandakumar.statushub';
 
   @override
   String get sendFeedback => 'கருத்தை அனுப்பவும்';

@@ -52,26 +52,21 @@ dependencies:
   flutter_cache_manager: ^3.4.1
   intl: ^0.20.2
   lottie: ^3.3.1
-  image_cropper: ^9.1.0
   workmanager: ^0.9.0+2
   flutter_background_service: ^5.1.0
   flutter_background_service_android: ^6.3.1
   sqflite: ^2.4.2
   shimmer: ^3.0.0
   url_launcher: ^6.3.2
+  flutter_launcher_icons: ^0.14.4
   fluttertoast: ^8.2.4
-  oktoast: ^3.3.1
   cached_network_image: ^3.2.3
   flutter_colorpicker: ^1.1.0
   path_provider: ^2.0.11
   image: ^4.5.4
   share_plus: ^11.1.0
-  image_picker: ^1.0.4
   archive: ^4.0.7
-  webp: 1.0.0+1
-  whatsapp_stickers_handler: ^0.5.0
   google_fonts: ^6.3.0
-  flutterbackgroundremover: ^0.0.1
   in_app_review: ^2.0.10
 
 dev_dependencies:
@@ -101,6 +96,7 @@ flutter:
     - assets/fonts/
     - assets/icons/
     - assets/images/
+    - assets/lottie/
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -130,7 +126,10 @@ flutter:
         - asset: assets/fonts/Inter-Bold.otf
           weight: 700
 
-
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icons/app_icon.png"
   # fonts:
   #   - family: Schyler
   #     fonts:

@@ -15,7 +15,7 @@
   "borderColor": "Border Color",
   "width": "Width:",
 
-  "appShareDetails": "📱 Shared via MyAwesomeApp\n✨ Download now: https://example.com/app",
+  "appShareDetails": "📱 Shared via MyAwesomeApp\n✨ Download now: https://play.google.com/store/apps/details?id=com.appsbyanandakumar.statushub",
 
   "share": "Share",
   "repost": "Repost",
@@ -60,17 +60,18 @@
 
   "appLanguage": "App Language",
   "english": "English",
-  "spanish": "Español",
-  "french": "Français",
-  "german": "Deutsch",
   "tamil": "தமிழ்",
+  "malayalam": "മലയാളം",
+  "telugu": "തെലുങ്ക്",
+  "kannada": "കന്നഡ",
+  "hindi": "हिन्दी",
 
   "rateUs": "Rate Us",
   "rateSubtitle": "Love the app? Leave a review!",
 
   "shareApp": "Share App",
   "shareSubtitle": "Tell your friends about us",
-  "shareMessage": "Check out this awesome app: https://play.google.com/store/apps/details?id=com.example.app",
+  "shareMessage": "Check out this awesome app: https://play.google.com/store/apps/details?id=com.appsbyanandakumar.statushub",
 
   "sendFeedback": "Send Feedback",
   "failedToOpenWhatsApp": "Failed to open Whatsapp",

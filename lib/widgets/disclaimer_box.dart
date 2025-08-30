@@ -9,7 +9,7 @@ class DisclaimerBox extends StatelessWidget {
     final local = AppLocalizations.of(context)!;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(

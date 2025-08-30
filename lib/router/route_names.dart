@@ -6,4 +6,5 @@ class RouteNames {
   static const String messageEncrypt = 'messageEncrypt';
   static const String recoverMessage = 'recoverMessage';
   static const String games = 'games';
+  static const String splash = 'splash';
 }

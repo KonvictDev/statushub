@@ -14,6 +14,7 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
 
     <queries>
         <package android:name="com.whatsapp" />
@@ -26,7 +27,6 @@
         android:icon="@mipmap/ic_launcher"
         android:enableOnBackInvokedCallback="true"
         android:requestLegacyExternalStorage="true">
-        <!-- REMOVED: tools:replace="android:theme" -->
 
         <activity
             android:name=".MainActivity"
@@ -49,10 +49,10 @@
             android:name=".NotificationListener"
             android:label="StatusHub Notification Listener"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
+            android:exported="true"
+            android:foregroundServiceType="dataSync"> <intent-filter>
+            <action android:name="android.service.notification.NotificationListenerService" />
+        </intent-filter>
         </service>
 
         <provider

@@ -5,22 +5,40 @@ import 'package:statushub/screens/games_screen.dart';
 import 'package:statushub/screens/recover_message_screen.dart';
 import 'package:statushub/screens/settings_screen.dart';
 import 'package:statushub/screens/secret_message_screen.dart';
+import 'package:statushub/screens/splash_screen.dart';
 
 import '../screens/home_screen.dart';
 import '../widgets/direct_message.dart';
 
 class AppRouter {
   late final GoRouter router = GoRouter(
-    initialLocation: '/home',
+    initialLocation: '/',
     routes: [
       GoRoute(
-        path: '/home',
-        name: RouteNames.home,
+        path: '/',
+        name: RouteNames.splash,
         pageBuilder: (context, state) => MaterialPage(
           key: state.pageKey,
-          child: HomeScreen(),
+          child: SplashScreen(),
         ),
       ),
+      GoRoute(
+        name: RouteNames.home,
+        path: '/home',
+        pageBuilder: (context, state) {
+          return CustomTransitionPage(
+            key: state.pageKey,
+            child: const HomeScreen(),
+            transitionsBuilder: (context, animation, secondaryAnimation, child) {
+              return FadeTransition(
+                opacity: animation,
+                child: child,
+              );
+            },
+          );
+        },
+      ),
+
       GoRoute(
         path: '/direct-message',
         name: RouteNames.directMessage,

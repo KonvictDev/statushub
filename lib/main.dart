@@ -9,6 +9,18 @@ import 'app.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Run app immediately
+  runApp(
+    const ProviderScope(
+      child: MyApp(),
+    ),
+  );
+
+  // Do async initializations in the background
+  _initApp();
+}
+
+Future<void> _initApp() async {
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
@@ -16,13 +28,7 @@ void main() async {
   await CacheManager.instance.cacheDir;
 
   await Workmanager().initialize(
-      callbackDispatcher,
-      isInDebugMode: true
-  );
-
-  runApp(
-    const ProviderScope(
-      child: MyApp(),
-    ),
+    callbackDispatcher,
+    isInDebugMode: true,
   );
 }
