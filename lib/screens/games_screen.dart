@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:statushub/screens/truth_or_dare_screen.dart';
 
 import 'Game2048.dart';
 import 'tic_tac_toe_screen.dart';
@@ -19,6 +20,11 @@ class GamesScreen extends StatelessWidget {
         'title': 'Tic-Tac-Toe',
         'icon': 'assets/images/game2.jpeg',
         'widget': TicTacToeScreen(),
+      },
+      {
+        'title': 'Truth or Dare',
+        'icon': 'assets/images/bottle.jpeg',
+        'widget': TruthOrDareHome(),
       },
     ];
 
