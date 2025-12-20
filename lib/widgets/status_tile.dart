@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'dart:typed_data' as typed;
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:statushub/utils/ad_helper.dart';
 import '../utils/media_actions.dart';
 import '../utils/media_utils.dart';
 import '../providers/thumbnail_provider.dart';
@@ -24,28 +26,34 @@ class StatusTile extends ConsumerWidget {
     HapticFeedback.lightImpact();
     final isVideo = MediaUtils.isVideoFile(file.path);
 
+    // Common properties for glass effect
+    const barrierColor = Colors.black45;
+
     if (isVideo) {
       showModalBottomSheet(
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        barrierColor: Colors.black54,
-        builder: (_) => DraggableScrollableSheet(
-          initialChildSize: 0.9,
-          minChildSize: 0.5,
-          maxChildSize: 1.0,
-          expand: false,
-          builder: (context, scrollController) {
-            return ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-              child: VideoPreviewBottomSheet(
-                file: File(file.path),
-                thumbnail: thumbnail,
-                scrollController: scrollController,
-                isSaved: isSaved,
-              ),
-            );
-          },
+        barrierColor: barrierColor,
+        builder: (_) => BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.9,
+            minChildSize: 0.5,
+            maxChildSize: 1.0,
+            expand: false,
+            builder: (context, scrollController) {
+              return ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                child: VideoPreviewBottomSheet(
+                  file: File(file.path),
+                  thumbnail: thumbnail,
+                  scrollController: scrollController,
+                  isSaved: isSaved,
+                ),
+              );
+            },
+          ),
         ),
       );
     } else {
@@ -53,12 +61,15 @@ class StatusTile extends ConsumerWidget {
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
-        barrierColor: Colors.black54,
-        builder: (_) => ClipRRect(
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-          child: ImageViewerBottomSheet(
-            file: File(file.path),
-            isSaved: isSaved,
+        barrierColor: barrierColor,
+        builder: (_) => BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            child: ImageViewerBottomSheet(
+              file: File(file.path),
+              isSaved: isSaved,
+            ),
           ),
         ),
       );
@@ -74,136 +85,112 @@ class StatusTile extends ConsumerWidget {
 
     return GestureDetector(
       onTap: () => _openViewer(context, mediaMetadata.value?.thumbnail),
-      child: Hero(
-        tag: file.path,
-        child: Card(
-          clipBehavior: Clip.antiAlias,
-          elevation: 4,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          shadowColor: Colors.black26,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // Media content
-              if (isVideo)
-                mediaMetadata.when(
-                  data: (metadata) => metadata.thumbnail != null
-                      ? Image.memory(
-                    metadata.thumbnail!,
-                    fit: BoxFit.cover,
-                  )
-                      : const Center(child: Icon(Icons.error, size: 40)),
-                  loading: () => Shimmer.fromColors(
-                    baseColor: Colors.grey[300]!,
-                    highlightColor: Colors.grey[100]!,
-                    child: Container(color: Colors.grey[300]),
-                  ),
-                  error: (_, __) => const Center(child: Icon(Icons.error, size: 40)),
-                )
-              else
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.file(
-                    File(file.path),
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.error, size: 40)),
-                  ),
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // 1. Media Content with Hero internal to the Tile
+            Hero(
+              tag: file.path,
+              child: isVideo
+                  ? mediaMetadata.when(
+                data: (metadata) => metadata.thumbnail != null
+                    ? Image.memory(metadata.thumbnail!, fit: BoxFit.cover)
+                    : Container(color: Colors.black87),
+                loading: () => Shimmer.fromColors(
+                  baseColor: isDark ? Colors.grey[800]! : Colors.grey[300]!,
+                  highlightColor: isDark ? Colors.grey[700]! : Colors.grey[100]!,
+                  child: Container(color: Colors.white),
                 ),
-              // Overlay and other UI elements
-              Container(
+                error: (_, __) => Container(color: Colors.black87),
+              )
+                  : Image.file(
+                File(file.path),
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(Icons.broken_image),
+              ),
+            ),
+
+            // 2. Visual Gradient Overlay
+            Positioned.fill(
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.bottomCenter,
                     end: Alignment.topCenter,
-                    colors: [
-                      Colors.black.withOpacity(0.4),
-                      Colors.transparent,
-                    ],
+                    colors: [Colors.black.withOpacity(0.4), Colors.transparent],
                   ),
-                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
-              if (isVideo) ...[
-                Center(
-                  child: Container(
-                    width: 50,
-                    height: 50,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.85),
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 4,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.play_arrow_rounded,
-                      size: 32,
-                      color: Colors.black87,
-                    ),
+            ),
+
+            // 3. Video Specific UI
+            if (isVideo) ...[
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.8),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: const Icon(Icons.play_arrow_rounded, size: 30, color: Colors.black87),
                 ),
-                Positioned(
-                  top: 12,
-                  left: 12,
-                  child: mediaMetadata.when(
-                    data: (metadata) => metadata.duration != null
-                        ? Container(
-                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        metadata.duration!,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    )
-                        : const SizedBox.shrink(),
-                    loading: () => const SizedBox.shrink(),
-                    error: (_, __) => const SizedBox.shrink(),
-                  ),
-                ),
-              ],
+              ),
               Positioned(
-                bottom: 12,
-                right: 12,
-                child: IconButton.filledTonal(
-                  style: IconButton.styleFrom(
-                    backgroundColor: isDark
-                        ? theme.colorScheme.surfaceVariant.withOpacity(0.7)
-                        : theme.colorScheme.primaryContainer.withOpacity(0.8),
-                    foregroundColor: theme.colorScheme.onPrimaryContainer,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.all(10),
-                    shadowColor: Colors.black26,
-                  ),
-                  icon: Icon(
-                    isSaved ? Icons.share_rounded : Icons.save_alt_rounded,
-                    size: 22,
-                  ),
-                  onPressed: isSaved
-                      ? MediaActions(context, File(file.path), isVideo: isVideo).share
-                      : () async {
-                    final actions = MediaActions(context, File(file.path), isVideo: isVideo);
-                    await actions.save();
-                  },
-                  tooltip: isSaved ? 'Share' : 'Save to gallery',
+                top: 8,
+                left: 8,
+                child: mediaMetadata.when(
+                  data: (meta) => meta.duration != null
+                      ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(4)),
+                    child: Text(meta.duration!, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  )
+                      : const SizedBox.shrink(),
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
                 ),
               ),
             ],
-          ),
+
+            // 4. Optimized Action Button
+            Positioned(
+              bottom: 8,
+              right: 8,
+              child: IconButton.filledTonal(
+                style: IconButton.styleFrom(
+                  backgroundColor: isDark ? Colors.white10 : Colors.white.withOpacity(0.9),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  padding: const EdgeInsets.all(8),
+                ),
+                icon: Icon(
+                  isSaved ? Icons.share_rounded : Icons.save_alt_rounded,
+                  size: 20,
+                  color: isDark ? Colors.white : theme.colorScheme.primary,
+                ),
+                onPressed: () async {
+                  HapticFeedback.mediumImpact();
+                  final actions = MediaActions(context, File(file.path), isVideo: isVideo);
+
+                  if (isSaved) {
+                    await actions.share();
+                  } else {
+                    await actions.save();
+
+                      AdHelper.showInterstitialAd(onComplete: () {
+                        debugPrint("Post-Save Ad Dismissed");
+
+                    });
+
+                  }
+                },
+                // Critical: We avoid 'tooltip' here to bypass the TickerProvider collision issue in animated lists
+              ),
+            ),
+          ],
         ),
       ),
     );

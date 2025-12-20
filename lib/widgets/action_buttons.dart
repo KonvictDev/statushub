@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:statushub/constants/app_colors.dart';
 import 'package:statushub/utils/media_actions.dart';
+import 'package:statushub/utils/ad_helper.dart';
 import '../l10n/app_localizations.dart';
 
 class ActionButtons extends StatelessWidget {
@@ -23,13 +24,6 @@ class ActionButtons extends StatelessWidget {
     final local = AppLocalizations.of(context)!;
     final actions = MediaActions(context, file, isVideo: isVideo);
 
-    final primaryBg = AppColors.primary.withOpacity(0.6);
-    final primaryFg = AppColors.white;
-    final secondaryBg = AppColors.primaryDark.withOpacity(0.6);
-    final secondaryFg = AppColors.white;
-    final tertiaryBg = AppColors.primaryLight.withOpacity(0.6);
-    final tertiaryFg = AppColors.white;
-
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
@@ -39,60 +33,65 @@ class ActionButtons extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: FilledButton.icon(
+                child: _buildButton(
                   onPressed: actions.share,
-                  icon: const Icon(Icons.share_rounded),
-                  label: Text(local.share),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: primaryBg,
-                    foregroundColor: primaryFg,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 3,
-                  ),
+                  icon: Icons.share_rounded,
+                  label: local.share,
+                  color: AppColors.primary,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: FilledButton.icon(
+                child: _buildButton(
                   onPressed: actions.repost,
-                  icon: const Icon(Icons.repeat_rounded),
-                  label: Text(local.repost),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: secondaryBg,
-                    foregroundColor: secondaryFg,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 3,
-                  ),
+                  icon: Icons.repeat_rounded,
+                  label: local.repost,
+                  color: AppColors.primaryDark,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          if (!isSaved)
-            FilledButton.icon(
+          if (!isSaved) ...[
+            const SizedBox(height: 16),
+            _buildButton(
               onPressed: () async {
-                await actions.save();
-                if (Navigator.of(sheetContext).canPop()) {
-                  Navigator.of(sheetContext).pop();
-                }
+                await actions.save(); // 1. Save the file first
+
+                // 2. Show the interstitial as a "post-action" reward
+                AdHelper.showInterstitialAd(onComplete: () {
+                  if (Navigator.of(sheetContext).canPop()) {
+                    Navigator.of(sheetContext).pop();
+                  }
+                });
               },
-              icon: const Icon(Icons.download_rounded),
-              label: Text(local.saveToGallery),
-              style: FilledButton.styleFrom(
-                backgroundColor: tertiaryBg,
-                foregroundColor: tertiaryFg,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                elevation: 3,
-              ),
+              icon: Icons.download_rounded,
+              label: local.saveToGallery,
+              color: AppColors.primaryLight,
+              isFullWidth: true,
             ),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildButton({
+    required VoidCallback onPressed,
+    required IconData icon,
+    required String label,
+    required Color color,
+    bool isFullWidth = false,
+  }) {
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      label: Text(label),
+      style: FilledButton.styleFrom(
+        backgroundColor: color.withOpacity(0.6),
+        foregroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        padding: isFullWidth ? const EdgeInsets.symmetric(vertical: 16) : null,
+        elevation: 3,
       ),
     );
   }

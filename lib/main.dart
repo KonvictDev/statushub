@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:statushub/service/background_worker.dart';
 import 'package:statushub/utils/cache_manager.dart';
 import 'package:workmanager/workmanager.dart';
@@ -9,6 +10,7 @@ import 'app.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+
   // Run app immediately
   runApp(
     const ProviderScope(
@@ -16,8 +18,10 @@ void main() async {
     ),
   );
 
-  // Do async initializations in the background
-  _initApp();
+  Future.delayed(const Duration(seconds: 2), () async {
+    await MobileAds.instance.initialize();
+    _initApp(); // Workmanager, etc.
+  });
 }
 
 Future<void> _initApp() async {

@@ -3,7 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:statushub/router/route_names.dart';
 import 'package:statushub/constants/app_strings.dart';
 
-import '../l10n/app_localizations.dart'; // ✅ central strings
+import '../l10n/app_localizations.dart';
 
 class FeaturesTab extends StatelessWidget {
   const FeaturesTab({super.key});

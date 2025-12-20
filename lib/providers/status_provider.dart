@@ -1,35 +1,46 @@
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
-import '../service/status_service.dart';
+import '../service/status_service.dart'; //
 
 enum MediaType { all, images, videos }
 enum SortOrder { recent, oldest }
 
+// Lightweight model to hold file and pre-calculated metadata
+class StatusModel {
+  final FileSystemEntity file;
+  final DateTime updatedAt;
+  StatusModel({required this.file, required this.updatedAt});
+}
+
 class StatusState {
-  final List<FileSystemEntity> allStatuses;
-  final List<FileSystemEntity> savedStatuses;
+  final List<StatusModel> allStatuses;
+  final List<StatusModel> savedStatuses;
   final MediaType selectedType;
   final SortOrder sortOrder;
+  final WhatsAppType currentApp;
 
   StatusState({
     required this.allStatuses,
     required this.savedStatuses,
     required this.selectedType,
     required this.sortOrder,
+    required this.currentApp,
   });
 
   StatusState copyWith({
-    List<FileSystemEntity>? allStatuses,
-    List<FileSystemEntity>? savedStatuses,
+    List<StatusModel>? allStatuses,
+    List<StatusModel>? savedStatuses,
     MediaType? selectedType,
     SortOrder? sortOrder,
+    WhatsAppType? currentApp,
   }) {
     return StatusState(
       allStatuses: allStatuses ?? this.allStatuses,
       savedStatuses: savedStatuses ?? this.savedStatuses,
       selectedType: selectedType ?? this.selectedType,
       sortOrder: sortOrder ?? this.sortOrder,
+      currentApp: currentApp ?? this.currentApp,
     );
   }
 }
@@ -41,55 +52,63 @@ class StatusNotifier extends StateNotifier<StatusState> {
     savedStatuses: [],
     selectedType: MediaType.all,
     sortOrder: SortOrder.recent,
+    currentApp: WhatsAppType.whatsapp,
   ));
 
   Future<void> loadStatuses() async {
-    final all = await StatusService.getStatuses();
-    final saved = await StatusService.getSavedStatuses();
-    state = state.copyWith(allStatuses: all, savedStatuses: saved);
+    // Parallel fetching of raw entities
+    final rawAll = await StatusService.getStatuses(state.currentApp);
+    final rawSaved = await StatusService.getSavedStatuses();
+
+    // PERFORMANCE: Pre-calculate metadata in parallel to avoid UI jank
+    final allModels = await _convertToModels(rawAll);
+    final savedModels = await _convertToModels(rawSaved);
+
+    if (mounted) {
+      state = state.copyWith(allStatuses: allModels, savedStatuses: savedModels);
+    }
   }
 
-  void setMediaType(MediaType type) {
-    state = state.copyWith(selectedType: type);
+  Future<List<StatusModel>> _convertToModels(List<FileSystemEntity> files) async {
+    return Future.wait(files.map((f) async {
+      try {
+        final stat = await f.stat(); // I/O happens once here
+        return StatusModel(file: f, updatedAt: stat.modified);
+      } catch (e) {
+        return StatusModel(file: f, updatedAt: DateTime(1970));
+      }
+    }));
   }
 
-  void setSortOrder(SortOrder order) {
-    state = state.copyWith(sortOrder: order);
+  Future<void> switchApp(WhatsAppType type) async {
+    state = state.copyWith(currentApp: type);
+    await loadStatuses();
   }
+
+  void setMediaType(MediaType type) => state = state.copyWith(selectedType: type);
+  void setSortOrder(SortOrder order) => state = state.copyWith(sortOrder: order);
 }
 
-final statusProvider = StateNotifierProvider<StatusNotifier, StatusState>((ref) {
-  return StatusNotifier();
-});
+final statusProvider = StateNotifierProvider<StatusNotifier, StatusState>((ref) => StatusNotifier());
 
-// Selector providers to get filtered/sorted lists
 final filteredStatusProvider = Provider.family<List<FileSystemEntity>, bool>((ref, isSaved) {
   final state = ref.watch(statusProvider);
-  final files = isSaved ? state.savedStatuses : state.allStatuses;
-  final selectedType = state.selectedType;
-  final sortOrder = state.sortOrder;
+  final models = isSaved ? state.savedStatuses : state.allStatuses;
 
-  final filtered = files.where((file) {
-    final path = file.path.toLowerCase();
-    final isImage = p.extension(path) == '.jpg' || p.extension(path) == '.jpeg' || p.extension(path) == '.png' || p.extension(path) == '.webp';
-    final isVideo = p.extension(path) == '.mp4' || p.extension(path) == '.mov' || p.extension(path) == '.mkv' || p.extension(path) == '.avi' || p.extension(path) == '.3gp';
+  // Filtering and Sorting now use lightning-fast in-memory metadata
+  final filtered = models.where((model) {
+    final ext = p.extension(model.file.path).toLowerCase();
+    final isImage = ['.jpg', '.jpeg', '.png', '.webp'].contains(ext);
+    final isVideo = ['.mp4', '.mov', '.mkv', '.avi', '.gif', '.3gp'].contains(ext);
 
-    switch (selectedType) {
-      case MediaType.images:
-        return isImage;
-      case MediaType.videos:
-        return isVideo;
-      case MediaType.all:
-      default:
-        return isImage || isVideo;
-    }
+    if (state.selectedType == MediaType.images) return isImage;
+    if (state.selectedType == MediaType.videos) return isVideo;
+    return isImage || isVideo;
   }).toList();
 
-  filtered.sort((a, b) {
-    final aTime = a.statSync().modified;
-    final bTime = b.statSync().modified;
-    return sortOrder == SortOrder.recent ? bTime.compareTo(aTime) : aTime.compareTo(bTime);
-  });
+  filtered.sort((a, b) => state.sortOrder == SortOrder.recent
+      ? b.updatedAt.compareTo(a.updatedAt)
+      : a.updatedAt.compareTo(b.updatedAt));
 
-  return filtered;
+  return filtered.map((m) => m.file).toList();
 });

@@ -26,6 +26,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // Use PostFrameCallback to check permissions after the first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPermissions();
     });
@@ -33,19 +34,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _checkPermissions() async {
     final hasPermission = await StatusService.hasRequiredPermissions();
+
     if (!mounted) return;
     setState(() {
       _hasPermission = hasPermission;
       _isLoading = false;
     });
 
-    if (hasPermission) {
-      ref.read(statusProvider.notifier).loadStatuses();
-    }
-  }
-
-  Future<void> _refreshStatuses() async {
-    await ref.read(statusProvider.notifier).loadStatuses();
+    // 🚀 SENIOR OPTIMIZATION:
+    // Do NOT call loadStatuses() here.
+    // Let the StatusTab handle its own loading with a delayed future
+    // to avoid freezing the entry transition.
   }
 
   @override
@@ -54,16 +53,19 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: CircularProgressIndicator(color: Colors.green)),
       );
     }
 
     if (!_hasPermission) {
       return PermissionScreen(
-        onPermissionGranted: () async {
-          if (!mounted) return;
-          setState(() => _hasPermission = true);
-          await ref.read(statusProvider.notifier).loadStatuses();
+        onPermissionGranted: () {
+          if (mounted) {
+            setState(() => _hasPermission = true);
+            // 🚀 Add this line to trigger the first scan immediately
+            // after permission is granted
+            ref.read(statusProvider.notifier).loadStatuses();
+          }
         },
       );
     }
@@ -73,6 +75,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       child: Scaffold(
         body: Column(
           children: [
+            // --- HEADER SECTION ---
             Container(
               color: AppColors.primary,
               child: SafeArea(
@@ -84,7 +87,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          // App Title
                           Text(
                             local.statusHub,
                             style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -92,18 +94,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-
-                          // Action Icons
-                          // Action Icons
                           Row(
                             children: [
+                              // 🔄 Refresh Button
                               IconButton(
                                 icon: const Icon(Icons.refresh, color: AppColors.white),
-                                tooltip: "refresh", // Make sure you add "refresh" in your localization
-                                onPressed: () async {
-                                  await _refreshStatuses();
-                                },
+                                onPressed: () => ref.read(statusProvider.notifier).loadStatuses(),
                               ),
+                              // 📱 WhatsApp Launcher
                               IconButton(
                                 icon: Image.asset(
                                   'assets/icons/whatsapp.png',
@@ -111,21 +109,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   width: 24,
                                   height: 24,
                                 ),
-                                tooltip: local.hotStatus,
                                 onPressed: () => WhatsAppService.openWhatsApp(context),
                               ),
-                              // 🔄 Refresh Button
-
+                              // ⚙️ Settings
                               IconButton(
                                 icon: const Icon(Icons.settings, color: AppColors.white),
-                                tooltip: local.settings,
-                                onPressed: () {
-                                  GoRouter.of(context).pushNamed(RouteNames.settings);
-                                },
+                                onPressed: () => GoRouter.of(context).pushNamed(RouteNames.settings),
                               ),
                             ],
                           ),
-
                         ],
                       ),
                     ),
@@ -134,83 +126,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       unselectedLabelColor: AppColors.white70,
                       indicatorColor: AppColors.white,
                       indicatorWeight: 3,
+                      labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                       tabs: [
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.home_rounded, size: 20),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  local.home,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.download_outlined, size: 20),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  local.saved,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Tab(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.extension_outlined, size: 20),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  local.tools,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                        Tab(text: local.home, icon: const Icon(Icons.home_rounded, size: 20)),
+                        Tab(text: local.saved, icon: const Icon(Icons.download_outlined, size: 20)),
+                        Tab(text: local.tools, icon: const Icon(Icons.extension_outlined, size: 20)),
                       ],
                     ),
                   ],
                 ),
               ),
             ),
-            const Divider(height: 1, thickness: 1),
+
+            // --- CONTENT SECTION ---
             Expanded(
               child: TabBarView(
                 physics: const BouncingScrollPhysics(),
                 children: [
-                  Column(
-                    children: [
-                      const DisclaimerBox(), // 👈 MOVED WIDGET HERE
-                      Expanded(
-                        child: StatusTab(
-                          isSaved: false,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Column(
-                    children: [
-                     // 👈 MOVED WIDGET HERE
-                      Expanded(
-                        child: StatusTab(
-                          isSaved: true,
-                        ),
-                      ),
-                    ],
-                  ),
+                  // Tab 1: Recent Statuses
+                  _buildStatusView(isSaved: false),
+                  // Tab 2: Saved Statuses
+                  _buildStatusView(isSaved: true),
+                  // Tab 3: Tools
                   const FeaturesTab(),
                 ],
               ),
@@ -218,6 +155,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusView({required bool isSaved}) {
+    return Column(
+      children: [
+        if (!isSaved) const DisclaimerBox(),
+        Expanded(
+          child: StatusTab(isSaved: isSaved),
+        ),
+      ],
     );
   }
 }

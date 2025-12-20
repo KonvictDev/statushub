@@ -1,107 +1,156 @@
 import 'dart:io';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:saf/saf.dart';
 import 'package:path/path.dart' as p;
+import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// Enum to switch between Apps
+enum WhatsAppType { whatsapp, business }
 
 class StatusService {
-  static const _basePath = '/storage/emulated/0/Download/StatusSaver';
-  static const _imageExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
-  static const _videoExtensions = ['.mp4', '.mkv', '.avi', '.mov'];
+  // --- Constants ---
+  static const String _prefPermissionKeyWA = 'perm_granted_whatsapp';
+  static const String _prefPermissionKeyWB = 'perm_granted_business';
 
-  static Future<String> _ensureDir(String subPath) async {
-    final dir = Directory(p.join(_basePath, subPath));
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
+  // Unified Save Path
+  static const String _savedPath = '/storage/emulated/0/Download/StatusHub';
+
+  static const _imageExtensions = {'.jpg', '.jpeg', '.png', '.webp'};
+  static const _videoExtensions = {'.mp4', '.mkv', '.avi', '.mov', '.gif', '.3gp'};
+
+  /// --- Path Strategy ---
+  static Future<String> _getWhatsAppPath(WhatsAppType type) async {
+    final androidInfo = await DeviceInfoPlugin().androidInfo;
+    final int sdkInt = androidInfo.version.sdkInt;
+    final isBusiness = type == WhatsAppType.business;
+
+    // Android 11+ (API 30+)
+    if (sdkInt >= 30) {
+      if (isBusiness) {
+        return 'Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses';
+      } else {
+        return 'Android/media/com.whatsapp/WhatsApp/Media/.Statuses';
+      }
     }
-    return dir.path;
+    // Android 10 and below (Legacy)
+    else {
+      if (isBusiness) {
+        return '/storage/emulated/0/WhatsApp Business/Media/.Statuses';
+      } else {
+        return '/storage/emulated/0/WhatsApp/Media/.Statuses';
+      }
+    }
   }
 
-  static Future<String> getSavedImagePath() => _ensureDir('Images');
-  static Future<String> getSavedVideoPath() => _ensureDir('Videos');
+  static String _getPermissionKey(WhatsAppType type) {
+    return type == WhatsAppType.business ? _prefPermissionKeyWB : _prefPermissionKeyWA;
+  }
 
+  /// --- 1. Permission Management ---
+
+  static Future<bool> hasPermission(WhatsAppType type) async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_getPermissionKey(type)) ?? false;
+  }
+
+  // Backwards compatibility
   static Future<bool> hasRequiredPermissions() async {
-    if (Platform.isAndroid) {
-      if (await Permission.manageExternalStorage.isGranted) return true;
-      if (await Permission.photos.isGranted && await Permission.videos.isGranted) return true;
-      if (await Permission.storage.isGranted) return true;
-    }
-    return false;
+    return await hasPermission(WhatsAppType.whatsapp);
   }
 
-  static Future<bool> requestPermissions() async {
-    if (Platform.isAndroid) {
-      if (await Permission.manageExternalStorage.request().isGranted) return true;
-      if (await Permission.photos.request().isGranted &&
-          await Permission.videos.request().isGranted) {
+  static Future<bool> requestPermission(WhatsAppType type) async {
+    try {
+      final path = await _getWhatsAppPath(type);
+      Saf saf = Saf(path);
+
+      bool? isGranted = await saf.getDirectoryPermission(grantWritePermission: true);
+
+      if (isGranted == true) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool(_getPermissionKey(type), true);
+        await saf.sync();
         return true;
       }
-      if (await Permission.storage.request().isGranted) return true;
+      return false;
+    } catch (e) {
+      debugPrint("StatusHub: Permission request failed: $e");
+      return false;
     }
-    return false;
   }
 
-  static Future<Directory?> _getStatusDirectory() async {
-    final possiblePaths = [
-      '/storage/emulated/0/Android/media/com.whatsapp/WhatsApp/Media/.Statuses',
-      '/storage/emulated/0/Android/media/com.whatsapp.w4b/WhatsApp Business/Media/.Statuses',
-      '/storage/emulated/0/WhatsApp/Media/.Statuses',
-      '/storage/emulated/0/WhatsApp Business/Media/.Statuses',
-      '/sdcard/WhatsApp/Media/.Statuses',
-      '/sdcard/WhatsApp Business/Media/.Statuses',
-    ];
+  /// --- 2. Get Live Statuses (Optimized) ---
 
-    for (final path in possiblePaths) {
-      try {
-        final dir = Directory(path);
-        if (await dir.exists()) return dir;
-      } catch (_) {
-        continue;
-      }
-    }
-    return null;
-  }
-
-  static Future<List<FileSystemEntity>> getStatuses() async {
+  static Future<List<FileSystemEntity>> getStatuses(WhatsAppType type) async {
     try {
-      if (!await hasRequiredPermissions()) return [];
+      final path = await _getWhatsAppPath(type);
+      Saf saf = Saf(path);
 
-      final dir = await _getStatusDirectory();
-      if (dir == null) return [];
+      await saf.sync();
 
-      final files = await dir.list().where((f) => f is File).toList();
+      List<String>? cachedPaths = await saf.getCachedFilesPath();
+      if (cachedPaths == null || cachedPaths.isEmpty) {
+        return [];
+      }
 
-      return files.where((f) {
-        final ext = p.extension(f.path).toLowerCase();
-        return _imageExtensions.contains(ext) || _videoExtensions.contains(ext);
-      }).toList();
-    } catch (_) {
+      List<File> statusFiles = [];
+      for (String pth in cachedPaths) {
+        if (_isValidExtension(pth)) {
+          statusFiles.add(File(pth));
+        }
+      }
+
+      // ✅ Use Optimized Sorting
+      return await _sortByDate(statusFiles);
+
+    } catch (e) {
+      debugPrint("StatusHub: Error fetching statuses: $e");
       return [];
     }
   }
+
+  /// --- 3. Get Saved Statuses (Optimized) ---
 
   static Future<List<FileSystemEntity>> getSavedStatuses() async {
     try {
-      final imageDir = Directory(await getSavedImagePath());
-      final videoDir = Directory(await getSavedVideoPath());
+      final saveDir = Directory(_savedPath);
+      if (!await saveDir.exists()) return [];
 
-      final imageFiles = await imageDir.list().where((f) => f is File).toList();
-      final videoFiles = await videoDir.list().where((f) => f is File).toList();
+      final files = saveDir.listSync().where((f) =>
+      f is File && _isValidExtension(f.path)
+      ).toList();
 
-      return [...imageFiles, ...videoFiles];
-    } catch (_) {
+      // ✅ Use Optimized Sorting
+      return await _sortByDate(files.cast<File>());
+
+    } catch (e) {
       return [];
     }
   }
 
-  static Future<bool> saveStatus(File file) async {
-    try {
-      final ext = p.extension(file.path).toLowerCase();
-      final isImage = _imageExtensions.contains(ext);
-      final destDir = isImage ? await getSavedImagePath() : await getSavedVideoPath();
-      final destPath = p.join(destDir, p.basename(file.path));
-      await file.copy(destPath);
-      return true;
-    } catch (_) {
-      return false;
-    }
+  /// ✅ PERFORMANCE FIX: Fetch metadata in parallel, sort in memory
+  static Future<List<File>> _sortByDate(List<File> files) async {
+    if (files.isEmpty) return [];
+
+    // Fetch modification times in parallel
+    final entries = await Future.wait(files.map((file) async {
+      try {
+        final stat = await file.stat();
+        return MapEntry(file, stat.modified);
+      } catch (e) {
+        return MapEntry(file, DateTime(1970));
+      }
+    }));
+
+    // Sort efficiently
+    entries.sort((a, b) => b.value.compareTo(a.value));
+
+    // Return sorted files
+    return entries.map((e) => e.key).toList();
+  }
+
+  static bool _isValidExtension(String path) {
+    final ext = p.extension(path).toLowerCase();
+    return _imageExtensions.contains(ext) || _videoExtensions.contains(ext);
   }
 }

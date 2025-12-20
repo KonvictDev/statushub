@@ -1,12 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:social_sharing_plus/social_sharing_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart' as p;
 import 'package:statushub/l10n/app_localizations.dart';
+import 'package:statushub/utils/media_utils.dart'; // Ensure this import points to your MediaUtils file
 
 class MediaActions {
   final BuildContext context;
@@ -15,6 +14,7 @@ class MediaActions {
 
   MediaActions(this.context, this.file, {required this.isVideo});
 
+  // Helper to create a temporary copy of the file for sharing
   Future<File?> _getShareableFile({required String prefix}) async {
     try {
       final originalExtension = p.extension(file.path);
@@ -28,20 +28,24 @@ class MediaActions {
     }
   }
 
+  // Share using the system share sheet
   Future<void> share() async {
     final local = AppLocalizations.of(context)!;
     final shareableFile = await _getShareableFile(prefix: "Status_hub");
     if (shareableFile == null) return;
+
     await Share.shareXFiles(
       [XFile(shareableFile.path)],
       text: local.appShareDetails,
     );
   }
 
+  // Repost directly to WhatsApp
   Future<void> repost() async {
     final local = AppLocalizations.of(context)!;
     final shareableFile = await _getShareableFile(prefix: "Status_hub_repost");
     if (shareableFile == null) return;
+
     try {
       await SocialSharingPlus.shareToSocialMedia(
         SocialPlatform.whatsapp,
@@ -51,42 +55,40 @@ class MediaActions {
       );
     } catch (e) {
       debugPrint("Error while reposting to WhatsApp: $e");
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(local.failedToOpenWhatsApp)),
-      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(local.failedToOpenWhatsApp)),
+        );
+      }
     }
   }
 
+  // Save the status to the gallery
   Future<void> save() async {
     final local = AppLocalizations.of(context)!;
     try {
-      final saved = await saveToGallery(file, isVideo: isVideo);
+      // Use the corrected MediaUtils class to save the file
+      await MediaUtils.saveToGallery(file, isVideo: isVideo);
+
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(local.saveToGallery)),
+          SnackBar(
+            content: Text(local.saveToGallery),
+            backgroundColor: Colors.green,
+            behavior: SnackBarBehavior.floating,
+          ),
         );
       }
     } catch (e) {
+      debugPrint("Save error: $e");
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("failedToSave")),
+          const SnackBar(
+            content: Text("Failed to save status"),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
-  }
-
-  // This saveToGallery method is now within the class and handles native calls.
-  Future<File> saveToGallery(File file, {required bool isVideo}) async {
-    const platform = MethodChannel('com.appsbyanandakumar.statushub/media_scanner');
-    final baseDir = Directory(
-        '/storage/emulated/0/Download/StatusSaver/${isVideo ? "Videos" : "Images"}');
-    if (!await baseDir.exists()) {
-      await baseDir.create(recursive: true);
-    }
-    final newPath = p.join(baseDir.path, p.basename(file.path));
-    final newFile = await file.copy(newPath);
-    await platform.invokeMethod('scanMedia', {'paths': [newFile.path]});
-    return newFile;
   }
 }

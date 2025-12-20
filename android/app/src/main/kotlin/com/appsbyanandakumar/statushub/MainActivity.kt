@@ -14,24 +14,15 @@ import android.util.Log
 
 class MainActivity : FlutterActivity() {
 
-    // Your existing channels
     private val MEDIA_SCANNER_CHANNEL = "com.appsbyanandakumar.statushub/media_scanner"
-    private val WEBP_CHANNEL = "com.appsbyanandakumar.statushub/convert_webp"
     private val WHATSAPP_CHANNEL = "com.appsbyanandakumar.statushub/open_whatsapp"
-
-    // The channel for the notification service
     private val NOTIFICATION_EVENT_CHANNEL = "com.appsbyanandakumar.statushub/messages"
-
-    // ✅ NEW: The channel for handling permissions
     private val PERMISSION_METHOD_CHANNEL = "com.appsbyanandakumar.statushub/permissions"
-
-    // ✅ NEW: A reference to our listener instance
-    // You don't need this, you should just set the static property.
-    // private val notificationListener = NotificationListener()
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
+        // 1. Media Scanner Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, MEDIA_SCANNER_CHANNEL)
             .setMethodCallHandler { call, result ->
                 if (call.method == "scanMedia") {
@@ -45,7 +36,7 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-
+        // 2. WhatsApp Opener Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WHATSAPP_CHANNEL)
             .setMethodCallHandler { call, result ->
                 if (call.method == "openWhatsApp") {
@@ -56,16 +47,15 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
+        // 3. Notification Event Channel (The Fix is Here)
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, NOTIFICATION_EVENT_CHANNEL)
             .setStreamHandler(object : EventChannel.StreamHandler {
                 override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
-                    // Correct: Assign the sink to the companion object property
                     NotificationListener.eventSink = events
                     Log.d("MainActivity", "EventChannel onListen: eventSink is set.")
 
-                    // ✅ NEW: Trigger the queue processing
-                    // You need to call this on the class itself
-                    NotificationListener.processQueue()
+                    // ✅ FIXED: Call the new method 'notifyFlutter' instead of 'processQueue'
+                    NotificationListener.notifyFlutter()
                 }
 
                 override fun onCancel(arguments: Any?) {
@@ -74,6 +64,7 @@ class MainActivity : FlutterActivity() {
                 }
             })
 
+        // 4. Permission Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PERMISSION_METHOD_CHANNEL).setMethodCallHandler { call, result ->
             when (call.method) {
                 "checkPermission" -> {
@@ -88,7 +79,6 @@ class MainActivity : FlutterActivity() {
             }
         }
     }
-
 
     private fun openWhatsAppHome(): Boolean {
         val packages = listOf("com.whatsapp", "com.whatsapp.w4b")

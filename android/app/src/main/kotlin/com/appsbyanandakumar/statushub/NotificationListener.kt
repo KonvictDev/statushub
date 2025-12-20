@@ -1,15 +1,14 @@
 package com.appsbyanandakumar.statushub
 
 import android.app.Notification
-import android.content.Context
+import android.content.ContentValues
+import android.database.Cursor
 import android.os.Handler
+import android.os.HandlerThread
 import android.os.Looper
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
-import androidx.work.OneTimeWorkRequest
-import androidx.work.WorkManager
-import java.util.concurrent.TimeUnit
 import io.flutter.plugin.common.EventChannel
 
 class NotificationListener : NotificationListenerService() {
@@ -17,17 +16,31 @@ class NotificationListener : NotificationListenerService() {
     companion object {
         private const val TAG = "NotificationListener"
         var eventSink: EventChannel.EventSink? = null
-        private val handler = Handler(Looper.getMainLooper())
+        private val mainHandler = Handler(Looper.getMainLooper())
 
-        fun processQueue() {
-            handler.post {
+        fun notifyFlutter() {
+            mainHandler.post {
                 eventSink?.success("refresh")
             }
         }
     }
 
+    private lateinit var dbHandler: Handler
+    private lateinit var dbThread: HandlerThread
+
+    override fun onCreate() {
+        super.onCreate()
+        dbThread = HandlerThread("MsgDbThread")
+        dbThread.start()
+        dbHandler = Handler(dbThread.looper)
+    }
+
+    override fun onDestroy() {
+        dbThread.quitSafely()
+        super.onDestroy()
+    }
+
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
-        super.onNotificationPosted(sbn)
         if (sbn == null) return
 
         val packageName = sbn.packageName
@@ -40,175 +53,103 @@ class NotificationListener : NotificationListenerService() {
         if (sender == null || notificationKey == null) return
         if (sender.contains("WhatsApp", ignoreCase = true) || sender.equals("You", ignoreCase = true)) return
 
-        // 📌 Get all lines (group chats / multiple messages)
         val bigTextLines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
         val fallbackMessage = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
-
-        // Store all messages in a list with their original order
         val allMessages = mutableListOf<String>()
 
-        // Add individual messages first
-        bigTextLines?.forEach { line ->
-            line?.toString()?.let { allMessages.add(it) }
-        }
+        bigTextLines?.forEach { line -> line?.toString()?.let { allMessages.add(it) } }
 
-        // Add fallback message if no individual lines exist
         if (allMessages.isEmpty() && fallbackMessage != null) {
             allMessages.add(fallbackMessage)
         }
 
-        // Store all messages in shared preferences for potential future deletion
-        storeMessagesForDeletionTracking(applicationContext, notificationKey, allMessages, sender, packageName)
-
-        allMessages.forEach { message ->
-            when {
-                // Skip summary lines like "7 new messages"
-                message.matches(Regex("\\d+ new messages", RegexOption.IGNORE_CASE)) -> {
-                    Log.d(TAG, "Skipping summary: $message")
-                }
-
-                // Deleted message - handle immediately
-                message.contains("This message was deleted", ignoreCase = true) ||
-                        message.contains("⚠️ This message was deleted", ignoreCase = true) -> {
-                    handleDeletedMessages(applicationContext, notificationKey, sender, packageName)
-                }
-
-                // Normal chat message
-                else -> {
-                    saveAndScheduleWork(applicationContext, sender, message, packageName, notificationKey)
-                }
-            }
+        dbHandler.post {
+            processMessages(sender, packageName, notificationKey, allMessages)
         }
     }
 
-    private fun storeMessagesForDeletionTracking(
-        context: Context,
-        notificationKey: String,
-        messages: List<String>,
+    private fun processMessages(
         sender: String,
-        packageName: String
-    ) {
-        handler.post {
-            try {
-                val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-                val messagesJson = messages.joinToString("|||") // Simple delimiter
-
-                with(prefs.edit()) {
-                    putString("flutter.pending_messages_$notificationKey", messagesJson)
-                    putString("flutter.pending_sender_$notificationKey", sender)
-                    putString("flutter.pending_package_$notificationKey", packageName)
-                    apply()
-                }
-                Log.d(TAG, "✅ Stored ${messages.size} messages for tracking: $notificationKey")
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error storing messages for deletion tracking: ${e.message}")
-            }
-        }
-    }
-
-    private fun handleDeletedMessages(
-        context: Context,
+        packageName: String,
         notificationKey: String,
-        sender: String,
-        packageName: String
+        messages: List<String>
     ) {
-        handler.post {
+        val dbHelper = MessagesDbHelper(applicationContext)
+        dbHelper.writableDatabase.use { db ->
             try {
-                val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-                val messagesJson = prefs.getString("flutter.pending_messages_$notificationKey", null)
-                val storedPackageName = prefs.getString("flutter.pending_package_$notificationKey", packageName) ?: packageName
+                var hasNewData = false
 
-                if (messagesJson != null) {
-                    val messages = messagesJson.split("|||")
+                messages.forEach { message ->
+                    if (isSummaryOrIgnored(message)) return@forEach
 
-                    // Mark all pending messages as deleted
-                    messages.forEach { message ->
-                        if (!message.matches(Regex("\\d+ new messages", RegexOption.IGNORE_CASE))) {
-                            saveDeletedMessage(context, notificationKey, sender, message, storedPackageName)
+                    // --- 1. HANDLE DELETION ---
+                    if (message.contains("This message was deleted", ignoreCase = true)) {
+                        val values = ContentValues().apply { put("isDeleted", 1) }
+                        // Mark the most recent non-deleted message from this sender as deleted
+                        val rows = db.update(
+                            "messages",
+                            values,
+                            "sender = ? AND packageName = ? AND isDeleted = 0",
+                            arrayOf(sender, packageName)
+                        )
+                        if (rows > 0) {
+                            Log.d(TAG, "🗑️ Marked message deleted from $sender")
+                            hasNewData = true
                         }
                     }
-
-                    // Clean up
-                    with(prefs.edit()) {
-                        remove("flutter.pending_messages_$notificationKey")
-                        remove("flutter.pending_sender_$notificationKey")
-                        remove("flutter.pending_package_$notificationKey")
-                        apply()
+                    // --- 2. HANDLE NEW MESSAGE (With Deduplication) ---
+                    else {
+                        // CHECK IF EXISTS FIRST
+                        if (!checkIfMessageExists(db, sender, message, packageName)) {
+                            val values = ContentValues().apply {
+                                put("sender", sender)
+                                put("message", message)
+                                put("packageName", packageName)
+                                put("timestamp", System.currentTimeMillis().toString())
+                                put("notificationKey", notificationKey)
+                                put("isDeleted", 0)
+                            }
+                            db.insert("messages", null, values)
+                            Log.d(TAG, "📥 Saved: $sender -> $message")
+                            hasNewData = true
+                        } else {
+                            // Log.v(TAG, "Duplicate ignored: $message")
+                        }
                     }
+                }
 
-                    Log.d(TAG, "⚠️ Marked ${messages.size} messages deleted for key: $notificationKey")
-                } else {
-                    // Fallback: if we don't have stored messages, just mark by key
-                    saveDeletedMessage(context, notificationKey, sender, "Unknown message", storedPackageName)
+                // Only notify Flutter if we actually changed something
+                if (hasNewData) {
+                    notifyFlutter()
                 }
 
             } catch (e: Exception) {
-                Log.e(TAG, "Error in handleDeletedMessages: ${e.message}")
+                Log.e(TAG, "Database error: ${e.message}")
             }
         }
     }
 
-    private fun saveDeletedMessage(
-        context: Context,
-        notificationKey: String,
+    // ✅ HELPER: Check DB for existing message to prevent duplicates
+    private fun checkIfMessageExists(
+        db: android.database.sqlite.SQLiteDatabase,
         sender: String,
         message: String,
         packageName: String
-    ) {
-        handler.post {
-            try {
-                val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-                val deletedMessages = prefs.getStringSet("flutter.deleted_notificationKeys", mutableSetOf()) ?: mutableSetOf()
-
-                // Store the deletion info with more context
-                with(prefs.edit()) {
-                    putString("flutter.deleted_sender_$notificationKey", sender)
-                    putString("flutter.deleted_message_$notificationKey", message)
-                    putString("flutter.deleted_package_$notificationKey", packageName)
-                    putStringSet("flutter.deleted_notificationKeys", deletedMessages + notificationKey)
-                    apply()
-                }
-
-                Log.d(TAG, "⚠️ Saved deleted message info for key: $notificationKey")
-
-                val workRequest = OneTimeWorkRequest.Builder(ProcessMessageWorker::class.java)
-                    .build()
-                WorkManager.getInstance(context).enqueue(workRequest)
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in saveDeletedMessage: ${e.message}")
-            }
-        }
+    ): Boolean {
+        val cursor: Cursor = db.query(
+            "messages",
+            arrayOf("id"), // Select just ID is faster
+            "sender = ? AND message = ? AND packageName = ?",
+            arrayOf(sender, message, packageName),
+            null, null, null
+        )
+        val exists = cursor.count > 0
+        cursor.close()
+        return exists
     }
 
-    private fun saveAndScheduleWork(
-        context: Context,
-        sender: String,
-        message: String,
-        packageName: String,
-        notificationKey: String
-    ) {
-        handler.post {
-            try {
-                val prefs = context.getSharedPreferences("FlutterSharedPreferences", Context.MODE_PRIVATE)
-                with(prefs.edit()) {
-                    putString("flutter.latest_sender", sender)
-                    putString("flutter.latest_message", message)
-                    putString("flutter.latest_packageName", packageName)
-                    putString("flutter.latest_notificationKey", notificationKey)
-                    apply()
-                }
-                Log.d(TAG, "✅ Saved message from '$sender': '$message'")
-
-                val workRequest = OneTimeWorkRequest.Builder(ProcessMessageWorker::class.java)
-                    .setInitialDelay(300, TimeUnit.MILLISECONDS)
-                    .build()
-                WorkManager.getInstance(context).enqueue(workRequest)
-
-            } catch (e: Exception) {
-                Log.e(TAG, "Error in saveAndScheduleWork: ${e.message}")
-            }
-        }
+    private fun isSummaryOrIgnored(msg: String): Boolean {
+        return msg.matches(Regex("\\d+ new messages", RegexOption.IGNORE_CASE)) ||
+                msg.contains("Checking for new messages", ignoreCase = true)
     }
 }

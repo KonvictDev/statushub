@@ -1,7 +1,8 @@
 import 'dart:io';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
-import 'package:lottie/lottie.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:statushub/service/status_service.dart';
 
 class PermissionScreen extends StatefulWidget {
   final VoidCallback onPermissionGranted;
@@ -12,16 +13,23 @@ class PermissionScreen extends StatefulWidget {
   State<PermissionScreen> createState() => _PermissionScreenState();
 }
 
-class _PermissionScreenState extends State<PermissionScreen>
-    with WidgetsBindingObserver {
-  bool _hasShownRationale = false;
-  bool _isPermanentlyDenied = false;
+class _PermissionScreenState extends State<PermissionScreen> with WidgetsBindingObserver {
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  // Track permissions
+  bool _hasStoragePermission = false;
+  bool _hasFolderAccess = false;
+
+  // Track OS version to adjust UI
+  bool _isAndroid13OrHigher = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _checkPermissionStatus();
+    _checkAndroidVersion();
+    _checkInitialPermissions();
   }
 
   @override
@@ -33,230 +41,203 @@ class _PermissionScreenState extends State<PermissionScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      _checkPermissionStatus();
+      _checkInitialPermissions();
     }
   }
 
-  Future<void> _checkPermissionStatus() async {
-    final status = await Permission.manageExternalStorage.status;
-    if (!mounted) return;
-    setState(() {
-      _isPermanentlyDenied = status.isPermanentlyDenied;
-    });
-
-    if (status.isGranted) {
-      widget.onPermissionGranted();
+  Future<void> _checkAndroidVersion() async {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+      if (mounted) {
+        setState(() {
+          _isAndroid13OrHigher = androidInfo.version.sdkInt >= 33;
+        });
+      }
     }
   }
 
-  Future<void> _requestPermissions() async {
-    final status = await Permission.manageExternalStorage.request();
-    if (status.isGranted) {
+  Future<void> _checkInitialPermissions() async {
+    // FIX 1: Check mounted before setting state
+    if (mounted) setState(() => _isLoading = true);
+
+    // 1. Check Standard Storage (Gallery)
+    bool storage = await _checkStoragePermission();
+
+    // 2. Check WhatsApp Folder
+    bool folder = await StatusService.hasPermission(WhatsAppType.whatsapp);
+
+    if (!mounted) return; // Stop if the widget is gone
+
+    if (storage && folder) {
       widget.onPermissionGranted();
-    } else if (status.isPermanentlyDenied) {
-      _showSettingsDialog();
     } else {
-      _showRationaleSheet();
+      // FIX 2: Check mounted again
+      if (mounted) {
+        setState(() {
+          _hasStoragePermission = storage;
+          _hasFolderAccess = folder;
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<bool> _checkStoragePermission() async {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+      // On Android 13+ (SDK 33), we DO NOT need standard storage permission.
+      if (androidInfo.version.sdkInt >= 33) {
+        return true;
+      }
+
+      // For Android 12 and below, we check the actual permission
+      return await Permission.storage.isGranted;
+    }
+    return true;
+  }
+
+  Future<void> _requestStoragePermission() async {
+    if (Platform.isAndroid) {
+      final androidInfo = await DeviceInfoPlugin().androidInfo;
+
+      if (androidInfo.version.sdkInt >= 33) {
+        _checkInitialPermissions();
+        return;
+      }
+
+      await Permission.storage.request();
+      _checkInitialPermissions();
+    }
+  }
+
+  Future<void> _requestFolderAccess() async {
+    if (mounted) setState(() => _isLoading = true);
+
+    await StatusService.requestPermission(WhatsAppType.whatsapp);
+
+    await _checkInitialPermissions();
+
+    // FIX 3: Check mounted
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: theme.colorScheme.background,
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24.0,
-              vertical: 16.0,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.primaryContainer,
-                    shape: BoxShape.circle,
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 10,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  child: SizedBox(
-                    height: 150,
-                    width: 150,
-                    child: Lottie.asset(
-                      'assets/lottie/folder_access.json',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  'Storage Permission Required',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.folder_shared_outlined, size: 80, color: Colors.green),
+              const SizedBox(height: 24),
+              const Text(
+                'Permissions Required',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'To save and view statuses, we need access permission:',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
+              const SizedBox(height: 32),
+
+              // --- 1. Storage Permission Card ---
+              if (!_isAndroid13OrHigher) ...[
+                _buildPermissionCard(
+                  title: "1. Gallery Access",
+                  subtitle: "Required to display the saved statuses.",
+                  isGranted: _hasStoragePermission,
+                  onTap: _requestStoragePermission,
+                  buttonText: "Allow Access",
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'To access WhatsApp statuses, the app needs special permission to read files stored on your device.\n\n'
-                      'Without this, the app cannot find and display statuses.',
-                  style: TextStyle(fontSize: 15),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 32),
-                FilledButton.icon(
-                  icon: const Icon(Icons.lock_open_rounded),
-                  label: const Text('Grant Permission'),
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  onPressed: _requestPermissions,
-                ),
-                const SizedBox(height: 16),
-                TextButton.icon(
-                  icon: const Icon(Icons.help_outline),
-                  label: const Text('How to Grant Permission'),
-                  onPressed: _showHelpDialog,
-                ),
               ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
-  void _showSettingsDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Permission Required'),
-        content: const Text(
-          'Permission has been permanently denied.\n\n'
-              'Please open app settings and allow access manually.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              openAppSettings();
-              Navigator.pop(context);
-            },
-            child: const Text('Open Settings'),
-          ),
-        ],
-      ),
-    );
-  }
+              // --- 2. WhatsApp Folder Card ---
+              _buildPermissionCard(
+                title: _isAndroid13OrHigher ? "WhatsApp Status Access" : "2. WhatsApp Status Access",
+                subtitle: "Required to fetch new statuses.",
+                isGranted: _hasFolderAccess,
+                onTap: _requestFolderAccess,
+                buttonText: "Select Folder",
+              ),
 
-  void _showHelpDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('How to Grant Permission'),
-        content: const Text(
-          '1. Tap "Grant Permission"\n'
-              '2. Select "Allow access to all files" when prompted\n'
-              '3. If denied, go to Settings → Apps → Your App → Permissions → Allow all files access',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
-  }
+              const SizedBox(height: 32),
 
-  void _showRationaleSheet() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Theme.of(context).colorScheme.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Theme.of(ctx).colorScheme.primaryContainer,
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Colors.black12,
-                        blurRadius: 10,
-                        offset: Offset(0, 5),
-                      ),
-                    ],
-                  ),
-                  padding: const EdgeInsets.all(16),
-                  child: const Icon(
-                    Icons.folder_rounded,
-                    size: 40,
-                    color: Colors.green,
+              if (_errorMessage != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Text(
+                    _errorMessage!,
+                    style: const TextStyle(color: Colors.red),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Why We Need This',
-                        style: Theme.of(ctx).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'This permission lets the app read WhatsApp statuses, which are saved in protected folders due to Android’s privacy rules.',
-                        style: Theme.of(ctx).textTheme.bodySmall?.copyWith(
-                          color: Colors.grey[600],
-                        ),
-                        textAlign: TextAlign.left,
-                      ),
-                    ],
-                  ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPermissionCard({
+    required String title,
+    required String subtitle,
+    required bool isGranted,
+    required VoidCallback onTap,
+    required String buttonText,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isGranted ? Colors.green.shade50 : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isGranted ? Colors.green.shade200 : Colors.grey.shade300,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                isGranted ? Icons.check_circle : Icons.circle_outlined,
+                color: isGranted ? Colors.green : Colors.grey,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(left: 36, top: 8, bottom: 12),
+            child: Text(subtitle, style: const TextStyle(color: Colors.black54)),
+          ),
+          if (!isGranted)
             SizedBox(
               width: double.infinity,
-              child: FilledButton(
-                style: FilledButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+              child: OutlinedButton(
+                onPressed: onTap,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.green,
+                  side: const BorderSide(color: Colors.green),
                 ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _requestPermissions();
-                },
-                child: const Text('Try Again'),
+                child: Text(buttonText),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

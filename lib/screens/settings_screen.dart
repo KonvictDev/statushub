@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // For HapticFeedback
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:share_plus/share_plus.dart';
@@ -30,35 +31,39 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _loadCacheSize() async {
-    final size = await _calculateCacheSize();
-    if (mounted) {
-      setState(() {
-        _cacheSizeMB = size;
-        _loading = false;
-      });
-    }
-  }
-
-  Future<int> _calculateCacheSize() async {
-    final dir = await CacheManager.instance.cacheDir;
-    int totalBytes = 0;
-    if (dir.existsSync()) {
-      for (final f in dir.listSync(recursive: true)) {
-        if (f is File) {
-          totalBytes += await f.length();
+    try {
+      final dir = await CacheManager.instance.cacheDir;
+      int totalBytes = 0;
+      if (dir.existsSync()) {
+        for (final f in dir.listSync(recursive: true)) {
+          if (f is File) {
+            totalBytes += await f.length();
+          }
         }
       }
+      if (mounted) {
+        setState(() {
+          _cacheSizeMB = (totalBytes / (1024 * 1024)).ceil();
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _cacheSizeMB = 0);
     }
-    return (totalBytes / (1024 * 1024)).ceil();
   }
 
   Future<void> _clearCache() async {
+    HapticFeedback.mediumImpact(); // 📳 Tactile feedback
     setState(() => _loading = true);
     await CacheManager.instance.clearCache();
     await _loadCacheSize();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(AppLocalizations.of(context)!.cacheCleared)),
+        SnackBar(
+          content: Text(AppLocalizations.of(context)!.cacheCleared),
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        ),
       );
     }
   }
@@ -67,13 +72,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (await _inAppReview.isAvailable()) {
       _inAppReview.requestReview();
     } else {
-      _inAppReview.openStoreListing(appStoreId: "com.example.app");
+      _inAppReview.openStoreListing(appStoreId: "com.appsbyanandakumar.statushub");
     }
   }
 
   void _shareApp() => Share.share(AppStrings.shareMessage);
 
-  // ✅ UPDATED: Function to send feedback via email intent
   Future<void> _sendFeedback() async {
     final Uri emailLaunchUri = Uri(
       scheme: 'mailto',
@@ -86,7 +90,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } else {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open email client. Please email us at appsbyanandakumar@gmail.com')),
+          const SnackBar(content: Text('Could not open email client.')),
         );
       }
     }
@@ -96,12 +100,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final url = Uri.parse('https://konvictdev.github.io/status_hu_privacy/');
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open the privacy policy link.')),
-        );
-      }
     }
   }
 
@@ -110,201 +108,380 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final loc = AppLocalizations.of(context)!;
     final currentLocale = ref.watch(localeProvider);
     final currentTheme = ref.watch(themeProvider);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final bgColor = isDark ? Colors.black : const Color(0xFFF2F2F7);
+    final sectionColor = isDark ? const Color(0xFF1C1C1E) : Colors.white;
 
     return Scaffold(
-      appBar: AppBar(title: Text(loc.settings)),
-      body: ListView(
-        padding: const EdgeInsets.all(12),
-        children: [
-          _buildHeader(loc.general),
-          _buildCacheCard(loc),
-          const SizedBox(height: 12),
-          _buildHeader(loc.preferences),
-          _buildThemeCard(loc, currentTheme),
-          const SizedBox(height: 12),
-          _buildLanguageCard(loc, currentLocale),
-          const SizedBox(height: 12),
-          _buildHeader(loc.about),
-          _buildRateCard(loc),
-          const SizedBox(height: 12),
-          _buildShareCard(loc),
-          const SizedBox(height: 12),
-          _buildFeedbackCard(loc),
-          const SizedBox(height: 12),
-          _buildPrivacyPolicyCard(loc),
-          const SizedBox(height: 12),
-          _buildInfoCard(loc),
-        ],
+      backgroundColor: bgColor,
+      appBar: AppBar(
+        title: Text(loc.settings, style: const TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: bgColor,
+        elevation: 0,
+        foregroundColor: isDark ? Colors.white : Colors.black,
+      ),
+      body: ScrollConfiguration(
+        behavior: const ScrollBehavior().copyWith(overscroll: false), // Removes Android glow
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          physics: const BouncingScrollPhysics(), // 🚀 BOUNCY SCROLL
+          children: [
+
+            // --- 1. GENERAL ---
+            _AnimatedSection(
+              delay: 0,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(loc.general),
+                  _buildSettingsGroup(
+                    color: sectionColor,
+                    children: [
+                      _buildTile(
+                        icon: Icons.cleaning_services_rounded,
+                        iconColor: Colors.orange,
+                        title: loc.cache,
+                        subtitle: _loading ? loc.loading : "$_cacheSizeMB MB used",
+                        trailing: _loading
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : TextButton(
+                          onPressed: _clearCache,
+                          child: Text(loc.clear, style: const TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // --- 2. APPEARANCE ---
+            _AnimatedSection(
+              delay: 1,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(loc.preferences),
+                  _buildSettingsGroup(
+                    color: sectionColor,
+                    children: [
+                      // Theme
+                      Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Row(
+                              children: [
+                                _buildIconContainer(Icons.brightness_6_rounded, Colors.purple),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Text(loc.theme, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: SegmentedButton<ThemeMode>(
+                                segments: const [
+                                  ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_rounded, size: 18), label: Text('Light')),
+                                  ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_rounded, size: 18), label: Text('Dark')),
+                                  ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.phone_android_rounded, size: 18), label: Text('Auto')),
+                                ],
+                                selected: {currentTheme},
+                                onSelectionChanged: (newSelection) {
+                                  HapticFeedback.selectionClick();
+                                  ref.read(themeProvider.notifier).setTheme(newSelection.first);
+                                },
+                                style: ButtonStyle(
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                  visualDensity: VisualDensity.compact,
+                                  shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      _buildDivider(),
+                      // Language
+                      _buildTile(
+                        icon: Icons.language_rounded,
+                        iconColor: Colors.blue,
+                        title: loc.appLanguage,
+                        subtitle: _getLanguageName(currentLocale.languageCode),
+                        trailing: DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: currentLocale.languageCode,
+                            icon: const Icon(Icons.arrow_drop_down_rounded, color: Colors.grey),
+                            style: TextStyle(color: isDark ? Colors.white : Colors.black, fontWeight: FontWeight.w500),
+                            onChanged: (value) {
+                              if (value != null) ref.read(localeProvider.notifier).setLocale(value);
+                            },
+                            items: [
+                              _buildDropdownItem('en', 'English'),
+                              _buildDropdownItem('ta', 'தமிழ்'),
+                              _buildDropdownItem('ml', 'മലയാളം'),
+                              _buildDropdownItem('te', 'తెలుగు'),
+                              _buildDropdownItem('kn', 'కన్నడ'),
+                              _buildDropdownItem('hi', 'हिन्दी'),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // --- 3. SUPPORT ---
+            _AnimatedSection(
+              delay: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(loc.about),
+                  _buildSettingsGroup(
+                    color: sectionColor,
+                    children: [
+                      _buildTile(
+                        icon: Icons.star_rate_rounded,
+                        iconColor: Colors.amber,
+                        title: loc.rateUs,
+                        subtitle: loc.rateSubtitle,
+                        onTap: _rateUs,
+                        showArrow: true,
+                      ),
+                      _buildDivider(),
+                      _buildTile(
+                        icon: Icons.share_rounded,
+                        iconColor: Colors.green,
+                        title: loc.shareApp,
+                        subtitle: loc.shareSubtitle,
+                        onTap: _shareApp,
+                        showArrow: true,
+                      ),
+                      _buildDivider(),
+                      _buildTile(
+                        icon: Icons.feedback_rounded,
+                        iconColor: Colors.teal,
+                        title: loc.sendFeedback,
+                        subtitle: loc.feedbackSubtitle,
+                        onTap: _sendFeedback,
+                        showArrow: true,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // --- 4. LEGAL ---
+            _AnimatedSection(
+              delay: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader("Legal"),
+                  _buildSettingsGroup(
+                    color: sectionColor,
+                    children: [
+                      _buildTile(
+                        icon: Icons.privacy_tip_rounded,
+                        iconColor: Colors.grey,
+                        title: loc.privacyPolicy,
+                        onTap: _openPrivacyPolicy,
+                        showArrow: true,
+                      ),
+                      _buildDivider(),
+                      _buildTile(
+                        icon: Icons.info_outline_rounded,
+                        iconColor: Colors.blueGrey,
+                        title: loc.appInfo,
+                        subtitle: "v1.0.0",
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // --- FOOTER ---
+            _AnimatedSection(
+              delay: 4,
+              child: Center(
+                child: Column(
+                  children: [
+                    Icon(Icons.favorite_rounded, size: 16, color: Colors.red.withOpacity(0.6)),
+                    const SizedBox(height: 4),
+                    Text(
+                      "Made in India",
+                      style: TextStyle(color: Colors.grey.withOpacity(0.8), fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+          ],
+        ),
       ),
     );
   }
+
+  // --- HELPER WIDGETS ---
 
   Widget _buildHeader(String title) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      padding: const EdgeInsets.only(left: 16, bottom: 8),
       child: Text(
-        title,
-        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 13,
           fontWeight: FontWeight.bold,
-          color: Theme.of(context).colorScheme.primary,
+          color: Colors.grey,
+          letterSpacing: 1.2,
         ),
       ),
     );
   }
 
-  Widget _buildCard({required Widget child}) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: child,
+  Widget _buildSettingsGroup({required Color color, required List<Widget> children}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(children: children),
     );
   }
 
-  /// Generic reusable simple card for ListTile
-  Widget _buildSimpleCard({
+  Widget _buildTile({
     required IconData icon,
+    required Color iconColor,
     required String title,
     String? subtitle,
+    Widget? trailing,
+    bool showArrow = false,
     VoidCallback? onTap,
-  }) =>
-      _buildCard(
-        child: ListTile(
-          onTap: onTap,
-          leading: Icon(icon),
-          title: Text(title),
-          subtitle: subtitle != null ? Text(subtitle) : null,
-        ),
-      );
-
-  Widget _buildCacheCard(AppLocalizations loc) => _buildCard(
-    child: ListTile(
-      leading: const Icon(Icons.storage_rounded),
-      title: Text(loc.cache),
-      subtitle:
-      _loading ? Text(loc.loading) : Text("$_cacheSizeMB ${loc.usedSuffix}"),
-      trailing: FilledButton.icon(
-        onPressed: _loading ? null : _clearCache,
-        icon: const Icon(Icons.delete_sweep_rounded),
-        label: Text(loc.clear),
+  }) {
+    return ListTile(
+      onTap: () {
+        if (onTap != null) {
+          HapticFeedback.lightImpact(); // 📳 Click feedback
+          onTap();
+        }
+      },
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      leading: _buildIconContainer(icon, iconColor),
+      title: Text(
+        title,
+        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
       ),
-    ),
-  );
-
-  Widget _buildThemeCard(AppLocalizations loc, ThemeMode currentTheme) =>
-      _buildCard(
-        child: Column(
-          children: [
-            ListTile(
-              leading: const Icon(Icons.brightness_6_rounded),
-              title: Text(loc.theme),
-              subtitle: Text(loc.chooseTheme),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(left: 5, bottom: 12, right: 5),
-              child: SegmentedButton<ThemeMode>(
-                segments: const [
-                  ButtonSegment(
-                    value: ThemeMode.light,
-                    icon: Icon(Icons.light_mode_rounded),
-                    label: Text('Light'),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.dark,
-                    icon: Icon(Icons.dark_mode_rounded),
-                    label: Text('Dark'),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.system,
-                    icon: Icon(Icons.phone_android_rounded),
-                    label: Text('System'),
-                  ),
-                ],
-                selected: {currentTheme},
-                onSelectionChanged: (newSelection) {
-                  ref.read(themeProvider.notifier).setTheme(newSelection.first);
-                },
-              ),
-            ),
-          ],
-        ),
-      );
-
-  Widget _buildLanguageCard(AppLocalizations loc, Locale currentLocale) {
-    String _getLanguageName(String code) {
-      switch (code) {
-        case 'ta': return "தமிழ்";
-        case 'ml': return "മലയാളം";
-        case 'te': return "తెలుగు";
-        case 'kn': return "కన్నడ";
-        case 'hi': return "हिन्दी";
-        default: return "English";
-      }
-    }
-
-    return _buildCard(
-      child: ListTile(
-        leading: const Icon(Icons.language_rounded),
-        title: Text(loc.appLanguage),
-        subtitle: Text(_getLanguageName(currentLocale.languageCode)),
-        trailing: DropdownButton<String>(
-          value: currentLocale.languageCode,
-          onChanged: (value) {
-            if (value != null) {
-              print("locale"+value);
-              ref.read(localeProvider.notifier).setLocale(value);
-            }
-          },
-          items: [
-            DropdownMenuItem(value: 'en', child: Text('English')),
-            DropdownMenuItem(value: 'ta', child: Text('தமிழ்')),
-            DropdownMenuItem(value: 'ml', child: Text('മലയാളം')),
-            DropdownMenuItem(value: 'te', child: Text('తెలుగు')),
-            DropdownMenuItem(value: 'kn', child: Text('కన్నడ')),
-            DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
-          ],
-        ),
-      ),
+      subtitle: subtitle != null
+          ? Text(subtitle, style: const TextStyle(fontSize: 13, color: Colors.grey))
+          : null,
+      trailing: trailing ?? (showArrow
+          ? const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.grey)
+          : null),
     );
   }
 
+  Widget _buildIconContainer(IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Icon(icon, color: color, size: 22),
+    );
+  }
 
-  // Refactored cards using _buildSimpleCard
-  Widget _buildRateCard(AppLocalizations loc) =>
-      _buildSimpleCard(
-        icon: Icons.star_rate_rounded,
-        title: loc.rateUs,
-        subtitle: loc.rateSubtitle,
-        onTap: _rateUs,
-      );
+  Widget _buildDivider() {
+    return const Divider(height: 1, thickness: 0.5, indent: 60, endIndent: 0, color: Colors.black12);
+  }
 
-  Widget _buildShareCard(AppLocalizations loc) =>
-      _buildSimpleCard(
-        icon: Icons.share_rounded,
-        title: loc.shareApp,
-        subtitle: loc.shareSubtitle,
-        onTap: _shareApp,
-      );
+  String _getLanguageName(String code) {
+    switch (code) {
+      case 'ta': return "தமிழ்";
+      case 'ml': return "മലയാളം";
+      case 'te': return "తెలుగు";
+      case 'kn': return "కన్నడ";
+      case 'hi': return "हिन्दी";
+      default: return "English";
+    }
+  }
 
-  Widget _buildFeedbackCard(AppLocalizations loc) =>
-      _buildSimpleCard(
-        icon: Icons.feedback_rounded,
-        title: loc.sendFeedback,
-        subtitle: loc.feedbackSubtitle,
-        onTap: _sendFeedback,
-      );
+  DropdownMenuItem<String> _buildDropdownItem(String value, String label) {
+    return DropdownMenuItem(value: value, child: Text(label));
+  }
+}
 
-  Widget _buildPrivacyPolicyCard(AppLocalizations loc) =>
-      _buildSimpleCard(
-        icon: Icons.privacy_tip_rounded,
-        title: loc.privacyPolicy,
-        subtitle: loc.privacySubtitle,
-        onTap: _openPrivacyPolicy,
-      );
+// 🚀 CUSTOM ANIMATION WRAPPER
+class _AnimatedSection extends StatefulWidget {
+  final Widget child;
+  final int delay; // 0, 1, 2... for staggering
+  const _AnimatedSection({required this.child, required this.delay});
 
-  Widget _buildInfoCard(AppLocalizations loc) =>
-      _buildSimpleCard(
-        icon: Icons.info_outline_rounded,
-        title: loc.appInfo,
-        subtitle: loc.version,
-      );
+  @override
+  State<_AnimatedSection> createState() => _AnimatedSectionState();
+}
+
+class _AnimatedSectionState extends State<_AnimatedSection> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fade;
+  late Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
+    _fade = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
+    _slide = Tween<Offset>(begin: const Offset(0, 0.1), end: Offset.zero).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+    );
+
+    Future.delayed(Duration(milliseconds: widget.delay * 100), () {
+      if (mounted) _controller.forward();
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: widget.child,
+      ),
+    );
+  }
 }

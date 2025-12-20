@@ -27,7 +27,7 @@ android {
 
     defaultConfig {
         applicationId = "com.appsbyanandakumar.statushub"
-        minSdk = flutter.minSdkVersion
+        minSdk = 23
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
