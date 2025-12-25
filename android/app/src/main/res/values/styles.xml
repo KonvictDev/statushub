@@ -1,14 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Launch theme shown while app process starts -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Translucent.NoTitleBar">
-        <!-- No splash drawable, background is transparent -->
-        <item name="android:windowBackground">@android:color/transparent</item>
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
 
-    <!-- Theme used once Flutter starts -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <!-- Match to transparent (or replace with your app's background color) -->
-        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowBackground">?android:colorBackground</item>
     </style>
 </resources>
