@@ -45,8 +45,17 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
-            isShrinkResources = false
+// 1. Enable R8 (This generates the mapping.txt file)
+            isMinifyEnabled = true
+
+            // 2. Shrink resources (Recommended to reduce app size)
+            isShrinkResources = true
+
+            // 3. Define Proguard rules (Standard Android setup)
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
 }

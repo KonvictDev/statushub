@@ -6,30 +6,30 @@ class AdHelper {
   // ✅ TEST IDs (Replace these with Real IDs from AdMob Dashboard for Release)
   static String get bannerAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/6300978111'; // Test Banner ID
+      return 'ca-app-pub-4435638027374306/8273160462'; // Real Android Banner ID
     }
-    return 'ca-app-pub-3940256099942544/2934735716'; // iOS Test
+    return 'ca-app-pub-3940256099942544/2934735716'; // iOS Test ID
   }
 
   static String get rewardedAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/5224354917'; // Test Banner ID
+      return 'ca-app-pub-4435638027374306/4017402446'; // Real Android Rewarded ID
     }
-    return 'ca-app-pub-3940256099942544/5224354917'; // iOS Test
+    return 'ca-app-pub-3940256099942544/1712485313'; // iOS Test ID
   }
 
   static String get interstitialAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/1033173712'; // Test Interstitial ID
+      return 'ca-app-pub-4435638027374306/5853228295'; // Real Android Interstitial ID
     }
-    return 'ca-app-pub-3940256099942544/4411468910'; // iOS Test
+    return 'ca-app-pub-3940256099942544/4411468910'; // iOS Test ID
   }
 
   static String get nativeAdUnitId {
     if (Platform.isAndroid) {
-      return 'ca-app-pub-3940256099942544/2247696110'; // Android Native Test ID
+      return 'ca-app-pub-4435638027374306/2951732789'; // Real Android Native ID
     }
-    return 'ca-app-pub-3940256099942544/3986624511'; // iOS Native Test ID
+    return 'ca-app-pub-3940256099942544/3986624511'; // iOS Test ID
   }
 
   // --- INTERSTITIAL AD LOGIC ---
