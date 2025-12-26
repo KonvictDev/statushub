@@ -24,43 +24,51 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _loading = true;
   final InAppReview _inAppReview = InAppReview.instance;
 
+  // ✅ Constants
+  final String _packageName = "com.appsbyanandakumar.statushub";
+
   @override
   void initState() {
     super.initState();
     _loadCacheSize();
   }
 
+  // ✅ FIX: Use async I/O to prevent UI jank
   Future<void> _loadCacheSize() async {
     try {
       final dir = await CacheManager.instance.cacheDir;
       int totalBytes = 0;
-      if (dir.existsSync()) {
-        for (final f in dir.listSync(recursive: true)) {
-          if (f is File) {
-            totalBytes += await f.length();
+
+      if (await dir.exists()) {
+        await for (final entity in dir.list(recursive: true, followLinks: false)) {
+          if (entity is File) {
+            try {
+              totalBytes += await entity.length();
+            } catch (_) {}
           }
         }
       }
+
       if (mounted) {
         setState(() {
-          _cacheSizeMB = (totalBytes / (1024 * 1024)).ceil();
+          _cacheSizeMB = (totalBytes / (1024 * 1024)).round();
           _loading = false;
         });
       }
     } catch (e) {
-      if (mounted) setState(() => _cacheSizeMB = 0);
+      if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _clearCache() async {
-    HapticFeedback.mediumImpact(); // 📳 Tactile feedback
+    HapticFeedback.mediumImpact();
     setState(() => _loading = true);
     await CacheManager.instance.clearCache();
     await _loadCacheSize();
     if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(AppLocalizations.of(context)!.cacheCleared),
+          content: Text(AppLocalizations.of(context)!.cacheCleared ?? "Cache Cleared"),
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -69,14 +77,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _rateUs() async {
+    // Note: This popup only shows if app is installed via Play Store.
+    // In debug mode, it may do nothing or show logs, which is normal.
     if (await _inAppReview.isAvailable()) {
       _inAppReview.requestReview();
     } else {
-      _inAppReview.openStoreListing(appStoreId: "com.appsbyanandakumar.statushub");
+      // Fallback to opening the store page directly
+      _inAppReview.openStoreListing(appStoreId: _packageName);
     }
   }
 
-  void _shareApp() => Share.share(AppStrings.shareMessage);
+  // ✅ FIX: Explicitly constructed the correct Play Store URL
+  void _shareApp() {
+    final loc = AppLocalizations.of(context)!;
+
+    // Construct the live URL dynamically
+    final url = "https://play.google.com/store/apps/details?id=$_packageName";
+
+    // You can customize the text here
+    final message = "📱 Download StatusHub to save WhatsApp Statuses, Recover Messages & more!\n\n✨ Get it here: $url";
+
+    Share.share(message);
+  }
 
   Future<void> _sendFeedback() async {
     final Uri emailLaunchUri = Uri(
@@ -97,7 +119,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _openPrivacyPolicy() async {
-    final url = Uri.parse('https://konvictdev.github.io/status_hu_privacy/');
+    // ✅ Check this URL - ensured no typos
+    final url = Uri.parse('https://konvictdev.github.io/status_hub_privacy/');
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
     }
@@ -123,10 +146,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         foregroundColor: isDark ? Colors.white : Colors.black,
       ),
       body: ScrollConfiguration(
-        behavior: const ScrollBehavior().copyWith(overscroll: false), // Removes Android glow
+        behavior: const ScrollBehavior().copyWith(overscroll: false),
         child: ListView(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          physics: const BouncingScrollPhysics(), // 🚀 BOUNCY SCROLL
+          physics: const BouncingScrollPhysics(),
           children: [
 
             // --- 1. GENERAL ---
@@ -142,13 +165,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _buildTile(
                         icon: Icons.cleaning_services_rounded,
                         iconColor: Colors.orange,
-                        title: loc.cache,
-                        subtitle: _loading ? loc.loading : "$_cacheSizeMB MB used",
+                        title: loc.cache ?? "Cache",
+                        subtitle: _loading ? "Loading..." : "$_cacheSizeMB MB used",
                         trailing: _loading
                             ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                             : TextButton(
                           onPressed: _clearCache,
-                          child: Text(loc.clear, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          child: Text(loc.clear ?? "Clear", style: const TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
@@ -165,7 +188,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(loc.preferences),
+                  _buildHeader(loc.preferences ?? "Preferences"),
                   _buildSettingsGroup(
                     color: sectionColor,
                     children: [
@@ -179,7 +202,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 _buildIconContainer(Icons.brightness_6_rounded, Colors.purple),
                                 const SizedBox(width: 16),
                                 Expanded(
-                                  child: Text(loc.theme, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                                  child: Text(loc.textTheme ?? "Theme", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                                 ),
                               ],
                             ),
@@ -212,7 +235,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _buildTile(
                         icon: Icons.language_rounded,
                         iconColor: Colors.blue,
-                        title: loc.appLanguage,
+                        title: "Language", // Use loc.language if available
                         subtitle: _getLanguageName(currentLocale.languageCode),
                         trailing: DropdownButtonHideUnderline(
                           child: DropdownButton<String>(
@@ -227,7 +250,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               _buildDropdownItem('ta', 'தமிழ்'),
                               _buildDropdownItem('ml', 'മലയാളം'),
                               _buildDropdownItem('te', 'తెలుగు'),
-                              _buildDropdownItem('kn', 'కన్నడ'),
+                              _buildDropdownItem('kn', 'ಕన్నడ'),
                               _buildDropdownItem('hi', 'हिन्दी'),
                             ],
                           ),
@@ -254,8 +277,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _buildTile(
                         icon: Icons.star_rate_rounded,
                         iconColor: Colors.amber,
-                        title: loc.rateUs,
-                        subtitle: loc.rateSubtitle,
+                        title: "Rate Us",
+                        subtitle: "Rate us on Play Store",
                         onTap: _rateUs,
                         showArrow: true,
                       ),
@@ -263,8 +286,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _buildTile(
                         icon: Icons.share_rounded,
                         iconColor: Colors.green,
-                        title: loc.shareApp,
-                        subtitle: loc.shareSubtitle,
+                        title: loc.share ?? "Share",
+                        subtitle: "Share app with friends",
                         onTap: _shareApp,
                         showArrow: true,
                       ),
@@ -272,8 +295,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _buildTile(
                         icon: Icons.feedback_rounded,
                         iconColor: Colors.teal,
-                        title: loc.sendFeedback,
-                        subtitle: loc.feedbackSubtitle,
+                        title: "Send Feedback",
+                        subtitle: "Contact us via email",
                         onTap: _sendFeedback,
                         showArrow: true,
                       ),
@@ -298,7 +321,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _buildTile(
                         icon: Icons.privacy_tip_rounded,
                         iconColor: Colors.grey,
-                        title: loc.privacyPolicy,
+                        title: "Privacy Policy",
                         onTap: _openPrivacyPolicy,
                         showArrow: true,
                       ),
@@ -306,7 +329,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _buildTile(
                         icon: Icons.info_outline_rounded,
                         iconColor: Colors.blueGrey,
-                        title: loc.appInfo,
+                        title: "App Info",
                         subtitle: "v1.0.0",
                       ),
                     ],
@@ -386,7 +409,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return ListTile(
       onTap: () {
         if (onTap != null) {
-          HapticFeedback.lightImpact(); // 📳 Click feedback
+          HapticFeedback.lightImpact();
           onTap();
         }
       },
@@ -425,7 +448,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       case 'ta': return "தமிழ்";
       case 'ml': return "മലയാളം";
       case 'te': return "తెలుగు";
-      case 'kn': return "కన్నడ";
+      case 'kn': return "ಕన్నడ";
       case 'hi': return "हिन्दी";
       default: return "English";
     }

@@ -12,6 +12,12 @@ import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 import android.util.Log
 
+// ✅ ADDED THESE TWO MISSING IMPORTS
+import java.io.File
+import androidx.core.content.FileProvider
+
+import io.flutter.embedding.android.FlutterActivity.enableEdgeToEdge
+
 class MainActivity : FlutterActivity() {
 
     private val MEDIA_SCANNER_CHANNEL = "com.appsbyanandakumar.statushub/media_scanner"
@@ -20,6 +26,7 @@ class MainActivity : FlutterActivity() {
     private val PERMISSION_METHOD_CHANNEL = "com.appsbyanandakumar.statushub/permissions"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        enableEdgeToEdge()
         super.configureFlutterEngine(flutterEngine)
 
         // 1. Media Scanner Channel
@@ -36,14 +43,28 @@ class MainActivity : FlutterActivity() {
                 }
             }
 
-        // 2. WhatsApp Opener Channel
+        // 2. WhatsApp Opener Channel (Updated)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, WHATSAPP_CHANNEL)
             .setMethodCallHandler { call, result ->
-                if (call.method == "openWhatsApp") {
-                    val success = openWhatsAppHome()
-                    result.success(success)
-                } else {
-                    result.notImplemented()
+                when (call.method) {
+                    "openWhatsApp" -> {
+                        // Your existing logic to open WhatsApp
+                        val success = openWhatsAppHome()
+                        result.success(success)
+                    }
+                    "shareFile" -> {
+                        // ✅ NEW: Native Share Logic
+                        val path = call.argument<String>("path")
+                        val isVideo = call.argument<Boolean>("isVideo") ?: false
+
+                        if (path != null) {
+                            shareFileToWhatsApp(path, isVideo)
+                            result.success(true)
+                        } else {
+                            result.error("INVALID_PATH", "Path cannot be null", null)
+                        }
+                    }
+                    else -> result.notImplemented()
                 }
             }
 
@@ -96,6 +117,35 @@ class MainActivity : FlutterActivity() {
             }
         }
         return false
+    }
+
+    private fun shareFileToWhatsApp(path: String, isVideo: Boolean) {
+        val file = File(path)
+        if (!file.exists()) return
+
+        // ❌ OLD (Plugin authority - caused the crash)
+        // val authority = "$packageName.flutter.share_provider"
+
+        // ✅ NEW (Your custom authority defined in Step 2)
+        val authority = "$packageName.fileprovider"
+
+        try {
+            val uri = FileProvider.getUriForFile(context, authority, file)
+
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = if (isVideo) "video/*" else "image/*"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_TEXT, "Sent via StatusHub")
+                setPackage("com.whatsapp")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error sharing to WhatsApp: ${e.message}")
+            e.printStackTrace()
+        }
     }
 
     private fun isNotificationServiceEnabled(): Boolean {

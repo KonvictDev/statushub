@@ -83,4 +83,15 @@ class WhatsAppService {
       ).showSnackBar(const SnackBar(content: Text("Platform not supported")));
     }
   }
+
+  static Future<void> shareFile(String path, {required bool isVideo}) async {
+    try {
+      await _channel.invokeMethod('shareFile', {
+        'path': path,
+        'isVideo': isVideo,
+      });
+    } on PlatformException catch (e) {
+      debugPrint("Failed to share to WhatsApp: ${e.message}");
+    }
+  }
 }

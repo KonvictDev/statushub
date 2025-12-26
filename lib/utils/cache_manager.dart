@@ -16,12 +16,14 @@ class CacheManager {
   Future<Directory> _initCacheDir() async {
     final dir = await getTemporaryDirectory();
     final cache = Directory('${dir.path}/status_cache');
-    if (!cache.existsSync()) {
-      cache.createSync(recursive: true);
+    if (!await cache.exists()) {
+      await cache.create(recursive: true);
     }
 
     if (!_cleanupDone) {
-      _cleanupOldCache(cache, maxAgeDays: 7, maxSizeMB: 200);
+      // Await here ensures we don't crash, but since it's async I/O
+      // it won't freeze the UI thread like listSync() did.
+      await _cleanupOldCache(cache, maxAgeDays: 7, maxSizeMB: 200);
       _cleanupDone = true;
     }
 
@@ -34,31 +36,62 @@ class CacheManager {
         int maxSizeMB = 200,
       }) async {
     final now = DateTime.now();
-    final files = dir.listSync().whereType<File>().toList();
 
-    // 1) Delete old files
-    for (final f in files) {
-      final stat = await f.stat();
-      if (now.difference(stat.modified).inDays > maxAgeDays) {
-        try {
-          f.deleteSync();
-        } catch (_) {}
+    // 1) Delete old files (Async)
+    // We use a separate list to avoid concurrent modification issues during iteration
+    final List<File> files = [];
+    try {
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is File) {
+          files.add(entity);
+        }
       }
+    } catch (_) {}
+
+    for (final f in files) {
+      try {
+        final stat = await f.stat();
+        if (now.difference(stat.modified).inDays > maxAgeDays) {
+          await f.delete();
+        }
+      } catch (_) {}
     }
 
-    // 2) Enforce size limit
-    final remaining = dir.listSync().whereType<File>().toList();
-    int totalBytes = remaining.fold(0, (sum, f) => sum + f.lengthSync());
+    // 2) Enforce size limit (Async)
+    // Re-fetch list in case files were deleted above
+    final List<File> remainingFiles = [];
+    try {
+      await for (final entity in dir.list(followLinks: false)) {
+        if (entity is File) {
+          remainingFiles.add(entity);
+        }
+      }
+    } catch (_) {}
+
+    // Calculate total size async
+    int totalBytes = 0;
+    final List<MapEntry<File, DateTime>> fileStats = [];
+
+    for (final f in remainingFiles) {
+      try {
+        final stat = await f.stat();
+        totalBytes += stat.size;
+        fileStats.add(MapEntry(f, stat.modified));
+      } catch (_) {}
+    }
+
     final maxBytes = maxSizeMB * 1024 * 1024;
 
     if (totalBytes > maxBytes) {
-      remaining.sort((a, b) =>
-          a.statSync().modified.compareTo(b.statSync().modified));
-      for (final f in remaining) {
+      // Sort by modification time (oldest first)
+      fileStats.sort((a, b) => a.value.compareTo(b.value));
+
+      for (final entry in fileStats) {
         if (totalBytes <= maxBytes) break;
         try {
-          final len = f.lengthSync();
-          f.deleteSync();
+          final f = entry.key;
+          final len = await f.length();
+          await f.delete();
           totalBytes -= len;
         } catch (_) {}
       }
@@ -67,12 +100,11 @@ class CacheManager {
 
   Future<String?> getCachedPath(String key) async {
     final cacheDir = await this.cacheDir;
-    final path = '${cacheDir.path}/${key.hashCode}.dat'; // Using a generic extension
+    final path = '${cacheDir.path}/${key.hashCode}.dat';
     final file = File(path);
-    return file.existsSync() ? path : null;
+    return await file.exists() ? path : null;
   }
 
-  /// Saves a value to the cache and returns the path.
   Future<String> saveToCache(String key, List<int> bytes) async {
     final cacheDir = await this.cacheDir;
     final path = '${cacheDir.path}/${key.hashCode}.dat';
@@ -80,16 +112,12 @@ class CacheManager {
     return path;
   }
 
-  /// 🔥 Manually clear cache (for a "Clear Cache" button)
   Future<void> clearCache() async {
     final dir = await cacheDir;
     try {
-      if (dir.existsSync()) {
-        for (final f in dir.listSync()) {
-          try {
-            f.deleteSync(recursive: true);
-          } catch (_) {}
-        }
+      if (await dir.exists()) {
+        await dir.delete(recursive: true);
+        await dir.create();
       }
     } catch (_) {}
   }

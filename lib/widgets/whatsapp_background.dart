@@ -40,9 +40,9 @@ class WhatsAppPatternPainter extends CustomPainter {
   final List<_IconDataWithPosition> _iconPositions;
 
   WhatsAppPatternPainter({required this.isDark, required Size size})
-      : _iconPositions = _generateIconPositions(size);
+      : _iconPositions = _generateIconPositions(size, isDark);
 
-  static List<_IconDataWithPosition> _generateIconPositions(Size size) {
+  static List<_IconDataWithPosition> _generateIconPositions(Size size, bool isDark) {
     final random = Random();
     final icons = <IconData>[
       Icons.chat_bubble_outline,
@@ -50,55 +50,11 @@ class WhatsAppPatternPainter extends CustomPainter {
       Icons.star_border,
       Icons.favorite_border,
       Icons.camera_alt_outlined,
-      Icons.image_outlined,
-      Icons.mic_none,
-      Icons.insert_emoticon_outlined,
-      Icons.link_outlined,
-      Icons.access_time,
-      Icons.notifications_none,
-      Icons.group_outlined,
-      Icons.location_on_outlined,
-      Icons.gif_box_outlined,
-      Icons.videocam_outlined,
-      Icons.call_made,
-      Icons.call_received,
-      Icons.file_copy_outlined,
-      Icons.send_outlined,
-      Icons.wifi_tethering_outlined,
-      Icons.security_outlined,
-      Icons.settings_outlined,
-      Icons.cloud_outlined,
-      Icons.language_outlined,
-      Icons.person_outline,
-      Icons.tag_outlined,
-      Icons.lock_outline,
-      Icons.thumb_up_off_alt,
-      Icons.event_note,
-      Icons.shopping_bag_outlined,
-      Icons.mail_outline,
-      Icons.account_circle_outlined,
-      Icons.laptop_mac_outlined,
-      Icons.bolt_outlined,
-      Icons.music_note_outlined,
-      Icons.map_outlined,
-      Icons.book_outlined,
-      Icons.coffee_outlined,
-      Icons.pets_outlined,
-      Icons.sports_soccer_outlined,
-      Icons.train_outlined,
-      Icons.flight_outlined,
-      Icons.work_outline,
-      Icons.wallet_outlined,
-      Icons.home_outlined,
-      Icons.star_rate_outlined,
-      Icons.light_mode_outlined,
-      Icons.dark_mode_outlined,
-      Icons.energy_savings_leaf_outlined,
-      Icons.celebration_outlined,
       Icons.eco_outlined,
     ];
 
-    const double step = 30; // distance between icons
+    final iconColor = (isDark ? Colors.white : Colors.black).withOpacity(0.07);
+    const double step = 30;
     final positions = <_IconDataWithPosition>[];
     int index = 0;
 
@@ -108,7 +64,22 @@ class WhatsAppPatternPainter extends CustomPainter {
         final dx = x + random.nextDouble() * 8 - 4;
         final dy = y + random.nextDouble() * 8 - 4;
         final angle = (random.nextDouble() * pi / 3) - (pi / 6);
-        final sizePx = 14 + random.nextDouble() * 10; // 14–24 px
+        final sizePx = 14 + random.nextDouble() * 10;
+
+        // ✅ OPTIMIZATION: Pre-calculate Layout
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: String.fromCharCode(icon.codePoint),
+            style: TextStyle(
+              fontFamily: icon.fontFamily,
+              package: icon.fontPackage,
+              fontSize: sizePx,
+              color: iconColor,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        );
+        textPainter.layout();
 
         positions.add(_IconDataWithPosition(
           icon: icon,
@@ -116,6 +87,7 @@ class WhatsAppPatternPainter extends CustomPainter {
           dy: dy,
           angle: angle,
           size: sizePx,
+          painter: textPainter,
         ));
         index++;
       }
@@ -125,26 +97,14 @@ class WhatsAppPatternPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final iconColor = (isDark ? Colors.white : Colors.black).withOpacity(0.07);
-
     for (final data in _iconPositions) {
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: String.fromCharCode(data.icon.codePoint),
-          style: TextStyle(
-            fontFamily: data.icon.fontFamily,
-            fontSize: data.size,
-            color: iconColor,
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-
       canvas.save();
       canvas.translate(data.dx, data.dy);
       canvas.rotate(data.angle);
-      textPainter.paint(canvas, Offset.zero);
+
+      // ✅ FAST PAINT
+      data.painter.paint(canvas, Offset.zero);
+
       canvas.restore();
     }
   }
@@ -156,6 +116,7 @@ class WhatsAppPatternPainter extends CustomPainter {
 class _IconDataWithPosition {
   final IconData icon;
   final double dx, dy, angle, size;
+  final TextPainter painter; // ✅ Added
 
   _IconDataWithPosition({
     required this.icon,
@@ -163,5 +124,6 @@ class _IconDataWithPosition {
     required this.dy,
     required this.angle,
     required this.size,
+    required this.painter,
   });
 }

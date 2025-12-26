@@ -25,8 +25,6 @@ class StatusTile extends ConsumerWidget {
   Future<void> _openViewer(BuildContext context, typed.Uint8List? thumbnail) async {
     HapticFeedback.lightImpact();
     final isVideo = MediaUtils.isVideoFile(file.path);
-
-    // Common properties for glass effect
     const barrierColor = Colors.black45;
 
     if (isVideo) {
@@ -83,6 +81,9 @@ class StatusTile extends ConsumerWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
 
+    // ✅ FIX: Unique Hero Tag to prevent "There are multiple heroes..." error
+    final heroTag = "${file.path}_${isSaved ? 'saved' : 'recent'}";
+
     return GestureDetector(
       onTap: () => _openViewer(context, mediaMetadata.value?.thumbnail),
       child: Card(
@@ -92,9 +93,8 @@ class StatusTile extends ConsumerWidget {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // 1. Media Content with Hero internal to the Tile
             Hero(
-              tag: file.path,
+              tag: heroTag, // ✅ Used unique tag here
               child: isVideo
                   ? mediaMetadata.when(
                 data: (metadata) => metadata.thumbnail != null
@@ -114,7 +114,6 @@ class StatusTile extends ConsumerWidget {
               ),
             ),
 
-            // 2. Visual Gradient Overlay
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
@@ -127,7 +126,6 @@ class StatusTile extends ConsumerWidget {
               ),
             ),
 
-            // 3. Video Specific UI
             if (isVideo) ...[
               Center(
                 child: Container(
@@ -156,7 +154,6 @@ class StatusTile extends ConsumerWidget {
               ),
             ],
 
-            // 4. Optimized Action Button
             Positioned(
               bottom: 8,
               right: 8,
@@ -179,15 +176,11 @@ class StatusTile extends ConsumerWidget {
                     await actions.share();
                   } else {
                     await actions.save();
-
-                      AdHelper.showInterstitialAd(onComplete: () {
-                        debugPrint("Post-Save Ad Dismissed");
-
+                    AdHelper.showInterstitialAd(onComplete: () {
+                      debugPrint("Post-Save Ad Dismissed");
                     });
-
                   }
                 },
-                // Critical: We avoid 'tooltip' here to bypass the TickerProvider collision issue in animated lists
               ),
             ),
           ],
