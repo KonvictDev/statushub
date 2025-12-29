@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:statushub/screens/permission_screen.dart';
 import 'package:statushub/constants/app_colors.dart';
 import 'package:statushub/providers/status_provider.dart';
+import 'package:statushub/utils/ad_blocker_detector.dart';
+import 'package:statushub/utils/ad_helper.dart';
 import '../l10n/app_localizations.dart';
 import '../router/route_names.dart';
 import '../service/status_service.dart';
@@ -23,6 +26,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _hasPermission = false;
   bool _isLoading = true;
 
+  // 💰 Ad Variables
+  BannerAd? _bannerAd;
+  bool _isAdLoaded = false;
+  bool _isAdBlocked = false; // Track if user is blocking ads
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +38,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkPermissions();
     });
+
+    // 💰 Try to load ad immediately to check for blockers
+    _loadBannerAd();
   }
 
   Future<void> _checkPermissions() async {
@@ -41,11 +52,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       _isLoading = false;
     });
 
-    // 🚀 SENIOR OPTIMIZATION:
-    // Do NOT call loadStatuses() here.
-    // Let the StatusTab handle its own loading with a delayed future
-    // to avoid freezing the entry transition.
+
   }
+
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: AdHelper.bannerAdUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          if (mounted) {
+            setState(() {
+              _isAdLoaded = true;
+              _isAdBlocked = false; // Ad loaded, so no blocker!
+            });
+          }
+        },
+        onAdFailedToLoad: (ad, error) {
+          debugPrint("Home Banner Failed: ${error.message}");
+          ad.dispose();
+
+          if (mounted) {
+            setState(() {
+              _isAdLoaded = false;
+              // 🚨 Check if it's a blocker error
+              _isAdBlocked = AdBlockerDetector.isBlockerError(error);
+            });
+
+            // 🚨 Show Dialog (Once per session)
+            if (_isAdBlocked) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                AdBlockerDetector.showDetectionDialog(context);
+              });
+            }
+          }
+        },
+      ),
+    )..load();
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -137,6 +183,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               ),
             ),
+            // --- 🚨 AD BLOCKER BANNER (Persists if Blocked) ---
+            if (_isAdBlocked)
+              Container(
+                width: double.infinity,
+                color: Colors.orange.shade100,
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Icon(Icons.sentiment_dissatisfied, color: Colors.orange.shade800),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        "Ads help keep this app free. No worries though you can still use all features perfectly, even with your ad blocker on!",
+                        style: TextStyle(color: Colors.orange.shade900, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // --- CONTENT SECTION ---
             Expanded(

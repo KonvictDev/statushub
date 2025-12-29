@@ -15,8 +15,8 @@ import android.util.Log
 // ✅ ADDED THESE TWO MISSING IMPORTS
 import java.io.File
 import androidx.core.content.FileProvider
-
-import io.flutter.embedding.android.FlutterActivity.enableEdgeToEdge
+// ✅ 2. Import for Edge-to-Edge Fix (Safe Version)
+import androidx.core.view.WindowCompat
 
 class MainActivity : FlutterActivity() {
 
@@ -26,8 +26,11 @@ class MainActivity : FlutterActivity() {
     private val PERMISSION_METHOD_CHANNEL = "com.appsbyanandakumar.statushub/permissions"
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        enableEdgeToEdge()
         super.configureFlutterEngine(flutterEngine)
+
+        // ✅ FIX: Enable Edge-to-Edge (Draw behind system bars)
+        // This replaces 'enableEdgeToEdge()' and works on all Flutter versions
+        WindowCompat.setDecorFitsSystemWindows(window, false)
 
         // 1. Media Scanner Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, MEDIA_SCANNER_CHANNEL)

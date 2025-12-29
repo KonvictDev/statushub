@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "73687948008",
+    "project_id": "status-hub-bd177",
+    "storage_bucket": "status-hub-bd177.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:73687948008:android:32ecd481da2f524bb3c75d",
+        "android_client_info": {
+          "package_name": "com.appsbyanandakumar.statushub"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzawOI6U1DJIGQSgtd088Hgl4oGHWAoug"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

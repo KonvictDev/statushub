@@ -32,6 +32,16 @@ class AdHelper {
     return 'ca-app-pub-3940256099942544/3986624511'; // iOS Test ID
   }
 
+  static String get appOpenAdUnitId {
+    if (Platform.isAndroid) {
+
+        // ⚠️ REPLACE WITH YOUR REAL ADMOB APP OPEN ID
+      return 'ca-app-pub-4435638027374306/4642188591';
+      }
+        return 'ca-app-pub-3940256099942544/3419835294'; // Google Test ID
+      }
+
+
   // --- INTERSTITIAL AD LOGIC ---
   static InterstitialAd? _interstitialAd;
   static bool _isInterstitialAdReady = false;

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';// ✅ Ensure this import
+import 'package:flutter/services.dart';
+import 'package:google_mobile_ads/google_mobile_ads.dart'; // ✅ Import AdMob
+import 'package:statushub/utils/ad_helper.dart'; // ✅ Import AdHelper
 import 'package:statushub/widgets/whatsapp_background.dart';
 
 import '../l10n/app_localizations.dart';
@@ -28,6 +30,10 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
 
   bool _isLoading = false;
 
+  // 💰 Ad Variables
+  BannerAd? _bannerAd;
+  bool _isBannerAdReady = false;
+
   @override
   void initState() {
     super.initState();
@@ -40,6 +46,31 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
       curve: Curves.easeInOut,
     );
     _animationController.forward();
+
+    // 💰 Load Ad
+    _loadBannerAd();
+  }
+
+  // 💰 Load Banner Ad Logic
+  void _loadBannerAd() {
+    _bannerAd = BannerAd(
+      adUnitId: AdHelper.bannerAdUnitId,
+      request: const AdRequest(),
+      size: AdSize.banner,
+      listener: BannerAdListener(
+        onAdLoaded: (_) {
+          setState(() {
+            _isBannerAdReady = true;
+          });
+        },
+        onAdFailedToLoad: (ad, err) {
+          debugPrint('Failed to load a banner ad: ${err.message}');
+          _isBannerAdReady = false;
+          ad.dispose();
+        },
+      ),
+    );
+    _bannerAd?.load();
   }
 
   @override
@@ -49,6 +80,7 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
     _messageController.dispose();
     _numberFocusNode.dispose();
     _messageFocusNode.dispose();
+    _bannerAd?.dispose(); // 💰 Dispose Ad
     super.dispose();
   }
 
@@ -87,7 +119,7 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final local = AppLocalizations.of(context)!; // ✅ Localizations reference
+    final local = AppLocalizations.of(context)!;
 
     return Scaffold(
       appBar: AppBar(
@@ -104,81 +136,99 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      const SizedBox(height: 20),
-                      Text(
-                        local.directMessageHeader,
-                        style: theme.textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          color: theme.colorScheme.onSurface,
+              child: Column(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Form(
+                        key: _formKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const SizedBox(height: 20),
+                            Text(
+                              local.directMessageHeader,
+                              style: theme.textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onSurface,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              local.directMessageSubtitle,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 32),
+
+                            // Phone number field
+                            ValueListenableBuilder<TextEditingValue>(
+                              valueListenable: _numberController,
+                              builder: (context, value, _) {
+                                return _buildInputField(
+                                  controller: _numberController,
+                                  focusNode: _numberFocusNode,
+                                  labelText: local.phoneNumberLabel,
+                                  keyboardType: TextInputType.phone,
+                                  prefixText: '$_defaultCountryCode ',
+                                  validator: (value) {
+                                    final cleaned =
+                                    value?.replaceAll(RegExp(r'\D'), '');
+                                    if (cleaned == null || cleaned.length < 10) {
+                                      return local.phoneNumberError;
+                                    }
+                                    return null;
+                                  },
+                                  onFieldSubmitted: (_) {
+                                    FocusScope.of(context)
+                                        .requestFocus(_messageFocusNode);
+                                  },
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 20),
+
+                            // Message field
+                            ValueListenableBuilder<TextEditingValue>(
+                              valueListenable: _messageController,
+                              builder: (context, value, _) {
+                                return _buildInputField(
+                                  controller: _messageController,
+                                  focusNode: _messageFocusNode,
+                                  labelText: local.optionalMessageLabel,
+                                  maxLines: 5,
+                                  suffixIcon: value.text.isNotEmpty
+                                      ? IconButton(
+                                    icon: const Icon(Icons.clear_rounded),
+                                    onPressed: () =>
+                                        _messageController.clear(),
+                                  )
+                                      : null,
+                                );
+                              },
+                            ),
+                            const SizedBox(height: 30),
+
+                            _buildSendButton(local),
+                            const SizedBox(height: 20),
+                          ],
                         ),
-                        textAlign: TextAlign.center,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        local.directMessageSubtitle,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      const SizedBox(height: 32),
-
-                      // ✅ Phone number field
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: _numberController,
-                        builder: (context, value, _) {
-                          return _buildInputField(
-                            controller: _numberController,
-                            focusNode: _numberFocusNode,
-                            labelText: local.phoneNumberLabel,
-                            keyboardType: TextInputType.phone,
-                            prefixText: '$_defaultCountryCode ',
-                            validator: (value) {
-                              final cleaned = value?.replaceAll(RegExp(r'\D'), '');
-                              if (cleaned == null || cleaned.length < 10) {
-                                return local.phoneNumberError;
-                              }
-                              return null;
-                            },
-                            onFieldSubmitted: (_) {
-                              FocusScope.of(context).requestFocus(_messageFocusNode);
-                            },
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 20),
-
-                      // ✅ Message field
-                      ValueListenableBuilder<TextEditingValue>(
-                        valueListenable: _messageController,
-                        builder: (context, value, _) {
-                          return _buildInputField(
-                            controller: _messageController,
-                            focusNode: _messageFocusNode,
-                            labelText: local.optionalMessageLabel,
-                            maxLines: 5,
-                            suffixIcon: value.text.isNotEmpty
-                                ? IconButton(
-                              icon: const Icon(Icons.clear_rounded),
-                              onPressed: () => _messageController.clear(),
-                            )
-                                : null,
-                          );
-                        },
-                      ),
-                      const SizedBox(height: 30),
-
-                      _buildSendButton(local),
-                    ],
+                    ),
                   ),
-                ),
+                  // 💰 Banner Ad Display (Sticky Bottom of Safe Area)
+                  if (_isBannerAdReady)
+                    Container(
+                      alignment: Alignment.center,
+                      width: _bannerAd!.size.width.toDouble(),
+                      height: _bannerAd!.size.height.toDouble(),
+                      child: AdWidget(ad: _bannerAd!),
+                    ),
+                ],
               ),
             ),
           ),
@@ -209,7 +259,9 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
         maxLines: maxLines,
         validator: validator,
         onFieldSubmitted: onFieldSubmitted,
-        textInputAction: onFieldSubmitted != null ? TextInputAction.next : TextInputAction.done,
+        textInputAction: onFieldSubmitted != null
+            ? TextInputAction.next
+            : TextInputAction.done,
         decoration: InputDecoration(
           prefixText: prefixText,
           labelText: labelText,
@@ -217,8 +269,8 @@ class _DirectMessageWidgetState extends State<DirectMessageWidget>
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
             borderSide: BorderSide(
-              color: theme.colorScheme.primary, // Set the border color
-              width: 1.5,                        // Border thickness
+              color: theme.colorScheme.primary,
+              width: 1.5,
             ),
           ),
           filled: true,
